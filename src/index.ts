@@ -14,11 +14,34 @@ app.get('/', (req, res) => {
   res.send('root');
 });
 
-io.on('connection', socket => {
-  console.log('a user connected');
+io.on('connection', async socket => {
+  console.log(`a user connected to the server`);
 
-  socket.on('disconnect', reason => {
-    console.log('a user disconnected');
+  socket.on('room-join', ({ roomId, nickname, playerList }) => {
+    socket.join(roomId);
+
+    console.log(playerList);
+    io.to(roomId).emit('room-join', { roomId, playerList });
+
+    console.log(`user ${nickname} joined room: ${roomId}`);
+  });
+
+  socket.on('room-search', ({ roomId }) => {
+    const doesRoomExist = io.sockets.adapter.rooms.get(roomId);
+
+    socket.emit('room-search', { doesRoomExist, roomId });
+  });
+
+  socket.on('disconnecting', () => {
+    socket.on('room-leave', ({ roomId, nickname }) => {
+      console.log(`user left room: ${roomId}`);
+    });
+
+    console.log('a user is disconnecting, rooms remaining:');
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`a user disconnected, rooms:`);
   });
 });
 
