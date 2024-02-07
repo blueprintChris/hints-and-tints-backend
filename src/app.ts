@@ -7,12 +7,13 @@ import { Player } from './models/Player';
 
 export class Application {
   private roomController: RoomController;
+  private port: number;
 
-  constructor(private port: number) {
-    this.bootstrap();
+  constructor(port: number) {
+    this.port = port;
   }
 
-  private async bootstrap() {
+  public async start() {
     const app = express();
     const server = createServer(app);
 
@@ -28,7 +29,7 @@ export class Application {
     this.initSocket(io);
 
     server.listen(this.port, () => {
-      console.log('server running at http://localhost:4000');
+      console.log(`server running at http://localhost:${this.port}`);
     });
   }
 
@@ -36,33 +37,47 @@ export class Application {
     io.on('connection', async socket => {
       console.log(`a user connected to the server`);
 
-      socket.on('room-create', ({ roomId }) => {
+      const createRoom = ({ roomId }) => {
         this.roomController.createRoom(roomId);
 
-        io.to(roomId).emit('room-create', { roomId });
-      });
+        socket.emit('room-create', { roomId });
+      };
 
-      socket.on('room-join', ({ roomId, nickname }) => {
+      const joinRoom = ({ roomId, nickname }) => {
         socket.join(roomId);
 
         const player = new Player(socket.id, nickname);
+        socket.emit('update-player', { player });
 
-        this.roomController.joinRoom(roomId, player);
-
-        const players = this.roomController.getPlayers(roomId);
-
-        io.to(roomId).emit('room-join', { roomId, player, players });
+        const players = this.roomController.joinRoom(roomId, player);
+        io.to(roomId).emit('room-join', { roomId, players });
 
         console.log(`user ${nickname} joined room: ${roomId}`);
-      });
+      };
 
-      socket.on('room-search', ({ roomId }) => {
+      const roomSearch = ({ roomId }) => {
         const doesRoomExist = this.roomController.getRoomById(roomId);
 
-        io.emit('room-search', { doesRoomExist, roomId });
-      });
+        socket.emit('room-search', { doesRoomExist, roomId });
+      };
 
-      socket.on('disconnecting', () => {
+      const updatePlayerRole = ({ roomId, playerId, role }) => {
+        const player = this.roomController.updatePlayerRole(roomId, playerId, role);
+        socket.emit('update-player', { player });
+
+        const players = this.roomController.getPlayers(roomId);
+        io.to(roomId).emit('update-player-role', { players });
+
+        console.log(`${player.getName()} updated their role to ${role}`);
+      };
+
+      const updateGameState = ({ roomId, gameState }) => {
+        this.roomController.updateRoomState(roomId, gameState);
+
+        io.to(roomId).emit('update-game-state', { gameState });
+      };
+
+      const disconnecting = () => {
         const socketRoom = [...socket.rooms];
 
         const playerId = socketRoom[0];
@@ -72,9 +87,7 @@ export class Application {
 
         if (room) {
           const player = room.getPlayerById(playerId);
-
-          this.roomController.leaveRoom(roomId, player);
-          const players = room.getPlayers();
+          const players = this.roomController.leaveRoom(roomId, player);
 
           io.to(roomId).emit('room-leave', { players });
 
@@ -84,10 +97,17 @@ export class Application {
             this.roomController.deleteRoom(roomId);
           }
         }
-      });
+      };
+
+      socket.on('room-create', createRoom);
+      socket.on('room-join', joinRoom);
+      socket.on('room-search', roomSearch);
+      socket.on('update-player-role', updatePlayerRole);
+      socket.on('update-game-state', updateGameState);
+      socket.on('disconnecting', disconnecting);
 
       socket.on('disconnect', () => {
-        console.log(`a user disconnected, rooms:`);
+        console.log(`a user disconnected`);
       });
     });
   }

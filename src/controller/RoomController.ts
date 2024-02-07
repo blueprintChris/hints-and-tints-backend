@@ -55,6 +55,9 @@ export class RoomController {
 
   /**
    * Joins a room in session and returns an updated player list
+   * @param roomId room id
+   * @param player player to add
+   * @returns players
    */
   public joinRoom(roomId: string, player: Player): Player[] {
     const room = this.getRoomById(roomId);
@@ -65,14 +68,39 @@ export class RoomController {
   }
 
   /**
-   * Removes a player from a player list within a single room
+   * Removes a player from a player list within a single room and returns updated player list
    * @param roomId room id
    * @param player player to remove
+   * @returns players
    */
-  public leaveRoom(roomId: string, player: Player): void {
+  public leaveRoom(roomId: string, player: Player): Player[] {
     const room = this.getRoomById(roomId);
 
     room.removePlayer(player);
+
+    return room.getPlayers();
+  }
+
+  public updatePlayerRole(roomId: string, playerId: string, role: string) {
+    const room = this.getRoomById(roomId);
+
+    const player = room.getPlayerById(playerId);
+
+    player.setPlayerRole(role);
+
+    return player;
+  }
+
+  public updateRoomState(roomId: string, state: string) {
+    const room = this.getRoomById(roomId);
+
+    room.setState(state);
+  }
+
+  public updateRoomHinter(roomId: string, playerId: string) {
+    const room = this.getRoomById(roomId);
+
+    room.setHinter(playerId);
   }
 
   /**

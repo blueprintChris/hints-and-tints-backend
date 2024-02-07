@@ -1,14 +1,14 @@
 export class Player {
   private id: string;
   private name: string;
-  private isClueGiver: boolean;
+  private role: string;
   private isTurn: boolean;
   private score: number;
 
-  constructor(id: string, name: string, isClueGiver = false) {
+  constructor(id: string, name: string) {
     this.id = id;
     this.name = name;
-    this.isClueGiver = isClueGiver;
+    this.role = '';
     this.isTurn = false;
     this.score = 0;
   }
@@ -21,6 +21,10 @@ export class Player {
     this.score = score;
   }
 
+  public setPlayerRole(role: string) {
+    this.role = role;
+  }
+
   public getName() {
     return this.name;
   }
@@ -29,8 +33,8 @@ export class Player {
     return this.id;
   }
 
-  public getIsClueGiver() {
-    return this.isClueGiver;
+  public getRole() {
+    return this.role;
   }
 
   public getIsTurn() {
