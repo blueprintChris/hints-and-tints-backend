@@ -1,16 +1,24 @@
+import { Colour } from './Colour';
+import { pickRandomColourFromGrid } from '../utils';
+import { grid } from '../constants/grid';
+
 export class Player {
   private id: string;
   private name: string;
   private role: string;
-  private isTurn: boolean;
   private score: number;
+  private colour: string;
+  private firstTint: Colour;
+  private secondTint: Colour;
 
   constructor(id: string, name: string) {
     this.id = id;
     this.name = name;
     this.role = '';
-    this.isTurn = false;
     this.score = 0;
+    this.colour = pickRandomColourFromGrid(grid);
+    this.firstTint = null;
+    this.secondTint = null;
   }
 
   public setName(name: string) {
@@ -25,6 +33,22 @@ export class Player {
     this.role = role;
   }
 
+  public setFirstTint(colour: Colour) {
+    this.firstTint = colour;
+  }
+
+  public setSecondTint(colour: Colour) {
+    this.secondTint = colour;
+  }
+
+  public getFirstTint() {
+    return this.firstTint;
+  }
+
+  public getSecondTint() {
+    return this.secondTint;
+  }
+
   public getName() {
     return this.name;
   }
@@ -37,11 +61,11 @@ export class Player {
     return this.role;
   }
 
-  public getIsTurn() {
-    return this.isTurn;
-  }
-
   public getScore() {
     return this.score;
+  }
+
+  public getColour() {
+    return this.colour;
   }
 }

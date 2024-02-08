@@ -1,3 +1,4 @@
+import { Colour } from '../models/Colour';
 import { Player } from '../models/Player';
 import { Room } from '../models/Room';
 import { RoomStore } from '../store/RoomStore';
@@ -81,7 +82,14 @@ export class RoomController {
     return room.getPlayers();
   }
 
-  public updatePlayerRole(roomId: string, playerId: string, role: string) {
+  /**
+   * Updates the player within the list of players with their new role
+   * @param roomId room id
+   * @param playerId player id
+   * @param role hinter or tinter
+   * @returns the updated player object
+   */
+  public setPlayerRole(roomId: string, playerId: string, role: string) {
     const room = this.getRoomById(roomId);
 
     const player = room.getPlayerById(playerId);
@@ -91,13 +99,13 @@ export class RoomController {
     return player;
   }
 
-  public updateRoomState(roomId: string, state: string) {
+  public setRoomState(roomId: string, state: string) {
     const room = this.getRoomById(roomId);
 
     room.setState(state);
   }
 
-  public updateRoomHinter(roomId: string, playerId: string) {
+  public setRoomHinter(roomId: string, playerId: string) {
     const room = this.getRoomById(roomId);
 
     room.setHinter(playerId);
@@ -112,5 +120,70 @@ export class RoomController {
     const room = this.getRoomById(roomId);
 
     return room.getPlayers();
+  }
+
+  public getPlayerById(roomId: string, playerId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getPlayerById(playerId);
+  }
+
+  /**
+   * Sets new player list
+   * @param roomId room id
+   * @param players current list of players
+   * @returns updated list of players
+   */
+  public setPlayers(roomId: string, players: Player[]) {
+    const room = this.getRoomById(roomId);
+
+    room.setPlayers(players);
+
+    return room.getPlayers();
+  }
+
+  public getSelectedColour(roomId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getSelectedColour();
+  }
+
+  public setSelectedColour(roomId: string, colour: Colour) {
+    const room = this.getRoomById(roomId);
+
+    room.setSelectedColour(colour);
+  }
+
+  public getCurrentTurn(roomId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getCurrentTurn();
+  }
+
+  public setCurrentTurn(roomId: string, playerId: string) {
+    const room = this.getRoomById(roomId);
+    const player = room.getPlayerById(playerId);
+
+    room.setCurrentTurn(player);
+  }
+
+  public setFirstHint(roomId: string, clue: string) {
+    const room = this.getRoomById(roomId);
+
+    room.setFirstHint(clue);
+  }
+
+  public setFirstTintForPlayer(roomId: string, playerId: string, colour: Colour) {
+    const room = this.getRoomById(roomId);
+    const player = room.getPlayerById(playerId);
+
+    player.setFirstTint(colour);
+  }
+
+  public setSecondTintForPlayer(roomId: string, playerId: string, colour: Colour) {
+    const room = this.getRoomById(roomId);
+    const player = room.getPlayerById(playerId);
+
+    player.setSecondTint(colour);
   }
 }

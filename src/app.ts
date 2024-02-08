@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events';
 import { RoomController } from './controller/RoomController';
 import { Player } from './models/Player';
+import { HINTER, TINTER } from './constants/roles';
 
 export class Application {
   private roomController: RoomController;
@@ -35,80 +36,175 @@ export class Application {
 
   private initSocket(io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) {
     io.on('connection', async socket => {
-      console.log(`a user connected to the server`);
+      try {
+        console.log(`a user connected to the server`);
 
-      const createRoom = ({ roomId }) => {
-        this.roomController.createRoom(roomId);
+        const createRoom = ({ roomId }) => {
+          this.roomController.createRoom(roomId);
 
-        socket.emit('room-create', { roomId });
-      };
+          socket.emit('room-create', { roomId });
+        };
 
-      const joinRoom = ({ roomId, nickname }) => {
-        socket.join(roomId);
+        const joinRoom = ({ roomId, nickname }) => {
+          socket.join(roomId);
 
-        const player = new Player(socket.id, nickname);
-        socket.emit('update-player', { player });
+          const player = new Player(socket.id, nickname);
+          socket.emit('update-player', { player });
 
-        const players = this.roomController.joinRoom(roomId, player);
-        io.to(roomId).emit('room-join', { roomId, players });
+          this.roomController.joinRoom(roomId, player);
+          const room = this.roomController.getRoomById(roomId);
 
-        console.log(`user ${nickname} joined room: ${roomId}`);
-      };
+          io.to(roomId).emit('room-join', {
+            roomId,
+            players: room.getPlayers(),
+            gameState: room.getState(),
+          });
 
-      const roomSearch = ({ roomId }) => {
-        const doesRoomExist = this.roomController.getRoomById(roomId);
+          console.log(`user ${nickname} joined room: ${roomId}`);
+        };
 
-        socket.emit('room-search', { doesRoomExist, roomId });
-      };
+        const roomSearch = ({ roomId }) => {
+          const doesRoomExist = this.roomController.getRoomById(roomId);
 
-      const updatePlayerRole = ({ roomId, playerId, role }) => {
-        const player = this.roomController.updatePlayerRole(roomId, playerId, role);
-        socket.emit('update-player', { player });
+          socket.emit('room-search', { doesRoomExist, roomId });
+        };
 
-        const players = this.roomController.getPlayers(roomId);
-        io.to(roomId).emit('update-player-role', { players });
+        const updatePlayerRole = ({ roomId, playerId, role }) => {
+          const player = this.roomController.setPlayerRole(roomId, playerId, role);
+          socket.emit('update-player', { player });
 
-        console.log(`${player.getName()} updated their role to ${role}`);
-      };
+          const players = this.roomController.getPlayers(roomId);
+          io.to(roomId).emit('update-players', { players });
 
-      const updateGameState = ({ roomId, gameState }) => {
-        this.roomController.updateRoomState(roomId, gameState);
+          console.log(`${player.getName()} updated their role to ${role}`);
+        };
 
-        io.to(roomId).emit('update-game-state', { gameState });
-      };
+        const updateGameState = ({ roomId, gameState }) => {
+          this.roomController.setRoomState(roomId, gameState);
 
-      const disconnecting = () => {
-        const socketRoom = [...socket.rooms];
+          io.to(roomId).emit('update-game-state', { gameState });
+        };
 
-        const playerId = socketRoom[0];
-        const roomId = socketRoom[1];
+        const startGame = ({ roomId, gameState }) => {
+          // get players in the room
+          const currentPlayers = this.roomController.getPlayers(roomId);
+          const sortedList: Player[] = [];
 
-        const room = this.roomController.getRoomById(roomId);
+          // put the hinter at the start of the array
+          const hinter = currentPlayers.find(pl => pl.getRole() === HINTER);
+          sortedList.push(hinter);
 
-        if (room) {
-          const player = room.getPlayerById(playerId);
-          const players = this.roomController.leaveRoom(roomId, player);
+          // put the rest of the players in
+          const tinters = currentPlayers.filter(pl => pl.getRole() === TINTER);
+          sortedList.push(...tinters);
 
-          io.to(roomId).emit('room-leave', { players });
+          // update the player list
+          const players = this.roomController.setPlayers(roomId, sortedList);
 
-          const isRoomEmpty = this.roomController.isRoomEmpty(roomId);
+          // update the room state
+          this.roomController.setRoomState(roomId, gameState);
+          io.to(roomId).emit('game-start', { gameState, players });
+        };
 
-          if (isRoomEmpty) {
-            this.roomController.deleteRoom(roomId);
+        const startRound = ({ roomId, selectedColour, gameState, firstHint }) => {
+          // get players in the room
+          const currentPlayers = this.roomController.getPlayers(roomId);
+
+          // get first tinter and make it their turn
+          const player = currentPlayers.filter(pl => pl.getRole() === TINTER)[0];
+          this.roomController.setCurrentTurn(roomId, player.getId());
+
+          // set the current selected colour, hint and update the game state
+          this.roomController.setRoomState(roomId, gameState);
+          this.roomController.setSelectedColour(roomId, selectedColour);
+          this.roomController.setFirstHint(roomId, firstHint);
+
+          const room = this.roomController.getRoomById(roomId);
+
+          console.log(`current turn ${room.getCurrentTurn().getName()}`);
+
+          io.to(roomId).emit('round-start', {
+            selectedColour: room.getSelectedColour(),
+            gameState: room.getState(),
+            players: room.getPlayers(),
+            currentTurn: room.getCurrentTurn(),
+            firstHint: room.getFirstHint(),
+          });
+        };
+
+        const makeTurn = ({ roomId, selectedSquare, playerId }) => {
+          // upodate players colour guess
+          this.roomController.setFirstTintForPlayer(roomId, playerId, selectedSquare);
+
+          // get the position of the current player in the list
+          const room = this.roomController.getRoomById(roomId);
+          const players = this.roomController.getPlayers(roomId);
+          const indexOfCurrentPlayer = players.findIndex(pl => pl.getId() === playerId);
+
+          // update the current player to the next player in the list if we are still in guessing
+          if (room.getState() === 'GUESSING_ONE') {
+            io.to(roomId).emit('update-players', { players });
+
+            const nextPlayer = players[indexOfCurrentPlayer + 1];
+
+            // if there is a next player, make it their turn
+            if (nextPlayer) {
+              this.roomController.setCurrentTurn(roomId, nextPlayer.getId());
+              const currentTurn = this.roomController.getCurrentTurn(roomId);
+
+              io.to(roomId).emit('make-turn', { players, currentTurn });
+            } else {
+              // if there is no next player, all players have had a turn - onto the next hint
+              this.roomController.setRoomState(roomId, 'SELECTION_TWO');
+
+              // we dont need to update the current player as they go again after selection
+              io.to(roomId).emit('update-game-state', { gameState: room.getState() });
+            }
           }
-        }
-      };
 
-      socket.on('room-create', createRoom);
-      socket.on('room-join', joinRoom);
-      socket.on('room-search', roomSearch);
-      socket.on('update-player-role', updatePlayerRole);
-      socket.on('update-game-state', updateGameState);
-      socket.on('disconnecting', disconnecting);
+          if (room.getState() === 'GUESSING_TWO') {
+            const nextPlayer = players[indexOfCurrentPlayer + 1];
+          }
+        };
 
-      socket.on('disconnect', () => {
-        console.log(`a user disconnected`);
-      });
+        const disconnecting = () => {
+          const socketRoom = [...socket.rooms];
+
+          const playerId = socketRoom[0];
+          const roomId = socketRoom[1];
+
+          const room = this.roomController.getRoomById(roomId);
+
+          if (room) {
+            const player = room.getPlayerById(playerId);
+            const players = this.roomController.leaveRoom(roomId, player);
+
+            io.to(roomId).emit('room-leave', { players });
+
+            const isRoomEmpty = this.roomController.isRoomEmpty(roomId);
+
+            if (isRoomEmpty) {
+              this.roomController.deleteRoom(roomId);
+            }
+          }
+        };
+
+        socket.on('room-create', createRoom);
+        socket.on('room-join', joinRoom);
+        socket.on('room-search', roomSearch);
+        socket.on('game-start', startGame);
+        socket.on('round-start', startRound);
+        socket.on('make-turn', makeTurn);
+        socket.on('update-player-role', updatePlayerRole);
+        socket.on('update-game-state', updateGameState);
+        socket.on('disconnecting', disconnecting);
+
+        socket.on('disconnect', () => {
+          console.log(`a user disconnected`);
+        });
+      } catch (err) {
+        console.error('there was an error', err.message);
+      }
     });
   }
 

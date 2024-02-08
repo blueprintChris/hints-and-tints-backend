@@ -1,18 +1,27 @@
+import { Colour } from './Colour';
 import { Player } from './Player';
 
 export class Room {
   private id: string;
   private players: Player[];
-  private currentTurn: string;
+  private currentTurn: Player;
   private hinter: string;
   private state: string;
+  private selectedColour: Colour;
+  private firstHint: string;
+  private secondHint: string;
+  private roundNumber: number;
 
   constructor(id: string) {
     this.id = id;
     this.players = [];
-    this.currentTurn = '';
+    this.currentTurn = null;
     this.hinter = '';
     this.state = 'LOBBY';
+    this.selectedColour = null;
+    this.firstHint = '';
+    this.secondHint = '';
+    this.roundNumber = 0;
   }
 
   public getPlayers() {
@@ -39,6 +48,22 @@ export class Room {
     return this.state;
   }
 
+  public getSelectedColour() {
+    return this.selectedColour;
+  }
+
+  public getFirstHint() {
+    return this.firstHint;
+  }
+
+  public getSecondHint() {
+    return this.secondHint;
+  }
+
+  public getCurrentTurn() {
+    return this.currentTurn;
+  }
+
   public addPlayer(player: Player) {
     this.players.push(player);
   }
@@ -55,5 +80,25 @@ export class Room {
 
   public setHinter(playerId: string) {
     this.hinter = playerId;
+  }
+
+  public setSelectedColour(colour: Colour) {
+    this.selectedColour = colour;
+  }
+
+  public setFirstHint(clue: string) {
+    this.firstHint = clue;
+  }
+
+  public setSecondHint(clue: string) {
+    this.secondHint = clue;
+  }
+
+  public setPlayers(players: Player[]) {
+    this.players = players;
+  }
+
+  public setCurrentTurn(player: Player) {
+    this.currentTurn = player;
   }
 }
