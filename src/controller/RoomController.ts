@@ -173,6 +173,12 @@ export class RoomController {
     room.setFirstHint(clue);
   }
 
+  public setSecondHint(roomId: string, clue: string) {
+    const room = this.getRoomById(roomId);
+
+    room.setSecondHint(clue);
+  }
+
   public setFirstTintForPlayer(roomId: string, playerId: string, colour: Colour) {
     const room = this.getRoomById(roomId);
     const player = room.getPlayerById(playerId);
@@ -185,5 +191,15 @@ export class RoomController {
     const player = room.getPlayerById(playerId);
 
     player.setSecondTint(colour);
+  }
+
+  public resetAllGuesses(roomId: string) {
+    const room = this.getRoomById(roomId);
+    const players = room.getPlayers();
+
+    players.forEach(player => {
+      player.setFirstTint(null);
+      player.setSecondTint(null);
+    });
   }
 }
