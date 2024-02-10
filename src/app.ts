@@ -5,6 +5,9 @@ import { DefaultEventsMap } from 'socket.io/dist/typed-events';
 import { RoomController } from './controller/RoomController';
 import { Player } from './models/Player';
 import { HINTER, TINTER } from './constants/roles';
+import { grid } from './constants/grid';
+import { Colour } from './models/Colour';
+import { getSurroundingElements, getSurroundingElementsAsArray } from './utils';
 
 export class Application {
   private roomController: RoomController;
@@ -117,7 +120,16 @@ export class Application {
 
           // set the current selected colour, hint and update the game state
           this.roomController.setRoomState(roomId, gameState);
-          this.roomController.setSelectedColour(roomId, selectedColour);
+
+          const colour = new Colour(
+            selectedColour.ref,
+            selectedColour.hex,
+            selectedColour.col,
+            selectedColour.x,
+            selectedColour.y
+          );
+
+          this.roomController.setSelectedColour(roomId, colour);
           this.roomController.setFirstHint(roomId, firstHint);
 
           const room = this.roomController.getRoomById(roomId);
@@ -161,10 +173,16 @@ export class Application {
 
           if (room.getState() === 'GUESSING_ONE') {
             // update players colour guess so it shows on the board for everyone
-            this.roomController.setFirstTintForPlayer(roomId, playerId, selectedSquare);
-            const players = this.roomController.getPlayers(roomId);
-            console.log(players);
+            const colour = new Colour(
+              selectedSquare.ref,
+              selectedSquare.hex,
+              selectedSquare.col,
+              selectedSquare.x,
+              selectedSquare.y
+            );
+            this.roomController.setFirstTintForPlayer(roomId, playerId, colour);
 
+            const players = this.roomController.getPlayers(roomId);
             io.to(roomId).emit('update-players', { players });
 
             // get the position of the current player in the list
@@ -188,9 +206,17 @@ export class Application {
 
           if (room.getState() === 'GUESSING_TWO') {
             // update players colour guess
-            this.roomController.setSecondTintForPlayer(roomId, playerId, selectedSquare);
-            const players = this.roomController.getPlayers(roomId);
+            const colour = new Colour(
+              selectedSquare.ref,
+              selectedSquare.hex,
+              selectedSquare.col,
+              selectedSquare.x,
+              selectedSquare.y
+            );
 
+            this.roomController.setSecondTintForPlayer(roomId, playerId, colour);
+
+            const players = this.roomController.getPlayers(roomId);
             io.to(roomId).emit('update-players', { players });
 
             // get the position of the current player in the list and find the next player
@@ -199,32 +225,60 @@ export class Application {
 
             if (nextPlayer) {
               // we are back at the hinter, so all players have had 2 guesses
-              // we need to select the next new hinter
+              // we need to select the next new hinter and total up scores
               if (nextPlayer.getRole() === HINTER) {
-                // reset everyones guesses and both hints
-                this.roomController.resetAllGuesses(roomId);
-                this.roomController.setFirstHint(roomId, '');
-                this.roomController.setSecondHint(roomId, '');
+                const square = this.roomController.getSelectedColour(roomId);
 
-                // get current hinter, who should always be at position zero and put them at the bacl
-                const updatedPlayers: Player[] = [...players];
-                const currentHinter = updatedPlayers.shift();
+                const surroundingSquares = getSurroundingElements(
+                  square.getX(),
+                  square.getY(),
+                  grid
+                );
+                const surroundingSquaresArray = getSurroundingElementsAsArray(surroundingSquares);
 
-                // set their role to tinter and put them at the back
-                currentHinter.setPlayerRole(TINTER);
-                updatedPlayers.push(currentHinter);
+                // we will check if anyone got the correct colour
+                players.forEach(player => {
+                  if (player.getRole() === TINTER) {
+                    if (player.getFirstTint().getRef() === room.getSelectedColour().getRef()) {
+                      // 3 points for guessing the exact colour
+                      player.setScore(player.getScore() + 3);
 
-                // get the position of the current hinter in the list and select the next hinter
-                const nextHinter = updatedPlayers[0];
-                nextHinter.setPlayerRole(HINTER);
+                      // hinter gets 1 point per guess inside 3x3 grid
+                      nextPlayer.setScore(nextPlayer.getScore() + 1);
+                    }
 
-                this.roomController.setPlayers(roomId, updatedPlayers);
+                    if (player.getSecondTint().getRef() === room.getSelectedColour().getRef()) {
+                      // 3 points for guessing the exact colour
+                      player.setScore(player.getScore() + 3);
+                      // hinter gets 1 point per guess inside 3x3 grid
+                      nextPlayer.setScore(nextPlayer.getScore() + 1);
+                    }
 
-                io.to(roomId).emit('end-round', {
+                    // check for surrounding squares
+                    surroundingSquaresArray.forEach(square => {
+                      if (square) {
+                        if (player.getFirstTint().getRef() === square.getRef()) {
+                          player.setScore(player.getScore() + 2);
+
+                          nextPlayer.setScore(nextPlayer.getScore() + 1);
+                        }
+
+                        if (player.getSecondTint().getRef() === square.getRef()) {
+                          player.setScore(player.getScore() + 2);
+
+                          nextPlayer.setScore(nextPlayer.getScore() + 1);
+                        }
+                      }
+                    });
+                  }
+                });
+
+                this.roomController.setPlayers(roomId, players);
+
+                io.to(roomId).emit('scoring', {
                   players,
-                  gameState: 'SELECTION',
-                  firstHint: room.getFirstHint(),
-                  secondHint: room.getSecondHint(),
+                  gameState: 'SCORING',
+                  surroundingSquares,
                 });
               }
 
@@ -234,6 +288,35 @@ export class Application {
               io.to(roomId).emit('make-turn', { currentTurn });
             }
           }
+        };
+
+        const endRound = ({ roomId }) => {
+          this.roomController.resetAllGuesses(roomId);
+          this.roomController.setFirstHint(roomId, '');
+          this.roomController.setSecondHint(roomId, '');
+
+          // get current hinter, who should always be at position zero and remove them from the list
+          const room = this.roomController.getRoomById(roomId);
+          const players = this.roomController.getPlayers(roomId);
+          const updatedPlayers: Player[] = [...players];
+          const currentHinter = updatedPlayers.shift();
+
+          // set their role to tinter and put them at the back
+          currentHinter.setPlayerRole(TINTER);
+          updatedPlayers.push(currentHinter);
+
+          // get the position of the current hinter in the list and set them as hinter
+          const nextHinter = updatedPlayers[0];
+          nextHinter.setPlayerRole(HINTER);
+
+          this.roomController.setPlayers(roomId, updatedPlayers);
+
+          io.to(roomId).emit('end-round', {
+            players,
+            gameState: 'SELECTION',
+            firstHint: room.getFirstHint(),
+            secondHint: room.getSecondHint(),
+          });
         };
 
         const disconnecting = () => {
@@ -265,6 +348,7 @@ export class Application {
         socket.on('round-start', startRound);
         socket.on('round-start-2', startSecondRound);
         socket.on('make-turn', makeTurn);
+        socket.on('round-end', endRound);
         socket.on('update-player-role', updatePlayerRole);
         socket.on('update-game-state', updateGameState);
         socket.on('disconnecting', disconnecting);
