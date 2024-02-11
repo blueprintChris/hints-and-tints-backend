@@ -12,26 +12,51 @@ export const pickRandomColourFromGrid = (grid: Grid) => {
   return square.hex;
 };
 
-export const getSurroundingElements = (x: number, y: number, matrix: Grid) => {
-  var x_limit = matrix.length;
-  if (x_limit == 0) return null; // matrix is empty
+export const getSurroundingElements = (row: number, col: number, matrix: Grid) => {
+  let surroundingSpaces: Colour[] = [];
+  for (let i = -1; i <= 1; i++) {
+    for (let j = -1; j <= 1; j++) {
+      // Skip the center item itself
+      if (
+        (i == 0 && j == 0) ||
+        row + i < 0 ||
+        row + i >= matrix.length ||
+        col + j < 0 ||
+        col + j >= matrix[0].squares.length
+      ) {
+        continue;
+      }
+      const result = matrix[row + i].squares[col + j];
+      const colour = new Colour(result.ref, result.hex, result.col, i, j);
 
-  var y_limit = matrix[0].squares.length; // Assumes all rows in the matrix are of same length (otherwise, not a matrix, right?)
+      surroundingSpaces.push(colour);
+    }
+  }
+  return surroundingSpaces;
+};
 
-  const results = {
-    tl: x - 1 >= 0 && y - 1 >= 0 ? matrix[x - 1].squares[y - 1] : null,
-    ml: y - 1 >= 0 ? matrix[x].squares[y - 1] : null,
-    bl: x + 1 < x_limit && y - 1 >= 0 ? matrix[x + 1].squares[y - 1] : null,
+export const getSurroundingSpacesByTwo = (row: number, col: number, matrix: Grid) => {
+  let surroundingSpaces: Colour[] = [];
 
-    tc: x - 1 >= 0 ? matrix[x - 1].squares[y] : null,
-    bc: x + 1 < x_limit ? matrix[x + 1].squares[y] : null,
+  for (let i = -2; i <= 2; i++) {
+    for (let j = -2; j <= 2; j++) {
+      // Skip the center item itself and items that are only 1 space away
+      if (
+        (Math.abs(i) != 2 && Math.abs(j) != 2) ||
+        row + i < 0 ||
+        row + i >= matrix.length ||
+        col + j < 0 ||
+        col + j >= matrix[0].squares.length
+      ) {
+        continue;
+      }
+      const result = matrix[row + i].squares[col + j];
+      const colour = new Colour(result.ref, result.hex, result.col, i, j);
 
-    tr: x - 1 >= 0 && y + 1 < y_limit ? matrix[x - 1].squares[y + 1] : null,
-    mr: y + 1 < y_limit ? matrix[x].squares[y + 1] : null,
-    br: x + 1 < x_limit && y + 1 < y_limit ? matrix[x + 1].squares[y + 1] : null,
-  };
-
-  return results;
+      surroundingSpaces.push(colour);
+    }
+  }
+  return surroundingSpaces;
 };
 
 export const getSurroundingElementsAsArray = surroundingElements => {

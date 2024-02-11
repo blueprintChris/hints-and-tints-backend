@@ -7,7 +7,7 @@ import { Player } from './models/Player';
 import { HINTER, TINTER } from './constants/roles';
 import { grid } from './constants/grid';
 import { Colour } from './models/Colour';
-import { getSurroundingElements, getSurroundingElementsAsArray } from './utils';
+import { getSurroundingElements, getSurroundingSpacesByTwo } from './utils';
 
 export class Application {
   private roomController: RoomController;
@@ -38,8 +38,8 @@ export class Application {
   }
 
   private initSocket(io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) {
-    io.on('connection', async socket => {
-      try {
+    try {
+      io.on('connection', async socket => {
         console.log(`a user connected to the server`);
 
         const createRoom = ({ roomId }) => {
@@ -234,7 +234,12 @@ export class Application {
                   square.getY(),
                   grid
                 );
-                const surroundingSquaresArray = getSurroundingElementsAsArray(surroundingSquares);
+
+                const surroundingSquaresByTwo = getSurroundingSpacesByTwo(
+                  square.getX(),
+                  square.getY(),
+                  grid
+                );
 
                 // we will check if anyone got the correct colour
                 players.forEach(player => {
@@ -254,8 +259,8 @@ export class Application {
                       nextPlayer.setScore(nextPlayer.getScore() + 1);
                     }
 
-                    // check for surrounding squares
-                    surroundingSquaresArray.forEach(square => {
+                    // check for inner surrounding squares, score by 2
+                    surroundingSquares.forEach(square => {
                       if (square) {
                         if (player.getFirstTint().getRef() === square.getRef()) {
                           player.setScore(player.getScore() + 2);
@@ -267,6 +272,19 @@ export class Application {
                           player.setScore(player.getScore() + 2);
 
                           nextPlayer.setScore(nextPlayer.getScore() + 1);
+                        }
+                      }
+                    });
+
+                    // check for outer squares, score by 1 - hinter gets no points for these
+                    surroundingSquaresByTwo.forEach(square => {
+                      if (square) {
+                        if (player.getFirstTint().getRef() === square.getRef()) {
+                          player.setScore(player.getScore() + 1);
+                        }
+
+                        if (player.getSecondTint().getRef() === square.getRef()) {
+                          player.setScore(player.getScore() + 1);
                         }
                       }
                     });
@@ -361,10 +379,10 @@ export class Application {
         socket.on('disconnect', () => {
           console.log(`a user disconnected`);
         });
-      } catch (err) {
-        console.error('there was an error', err.message);
-      }
-    });
+      });
+    } catch (err) {
+      console.error('there was an error', err.message);
+    }
   }
 
   private initRoutes(app: Express) {
