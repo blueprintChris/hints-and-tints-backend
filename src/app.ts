@@ -298,6 +298,7 @@ export class Application {
           // get current hinter, who should always be at position zero and remove them from the list
           const room = this.roomController.getRoomById(roomId);
           const players = this.roomController.getPlayers(roomId);
+
           const updatedPlayers: Player[] = [...players];
           const currentHinter = updatedPlayers.shift();
 
@@ -311,8 +312,8 @@ export class Application {
 
           this.roomController.setPlayers(roomId, updatedPlayers);
 
-          io.to(roomId).emit('end-round', {
-            players,
+          io.to(roomId).emit('round-end', {
+            players: updatedPlayers,
             gameState: 'SELECTION',
             firstHint: room.getFirstHint(),
             secondHint: room.getSecondHint(),
@@ -352,6 +353,10 @@ export class Application {
         socket.on('update-player-role', updatePlayerRole);
         socket.on('update-game-state', updateGameState);
         socket.on('disconnecting', disconnecting);
+
+        socket.on('error', err => {
+          console.error('an error occurred', err.message);
+        });
 
         socket.on('disconnect', () => {
           console.log(`a user disconnected`);
