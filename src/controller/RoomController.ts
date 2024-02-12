@@ -1,3 +1,4 @@
+import { TINTER } from '../constants/roles';
 import { Colour } from '../models/Colour';
 import { Player } from '../models/Player';
 import { Room } from '../models/Room';
@@ -39,9 +40,10 @@ export class RoomController {
   /**
    * Creates an new empty room at specified object key
    * @param id room id
+   * @param scoreLimit game ends when this score is reached
    */
-  public createRoom(id: string): void {
-    const room = new Room(id);
+  public createRoom(id: string, scoreLimit: number): void {
+    const room = new Room(id, scoreLimit);
 
     this.roomStore.store(id, room);
   }
@@ -95,8 +97,6 @@ export class RoomController {
     const player = room.getPlayerById(playerId);
 
     player.setPlayerRole(role);
-
-    return player;
   }
 
   public setRoomState(roomId: string, state: string) {
@@ -105,10 +105,10 @@ export class RoomController {
     room.setState(state);
   }
 
-  public setRoomHinter(roomId: string, playerId: string) {
+  public setRoomHinter(roomId: string, hinter: Player) {
     const room = this.getRoomById(roomId);
 
-    room.setHinter(playerId);
+    room.setHinter(hinter);
   }
 
   /**
@@ -128,6 +128,12 @@ export class RoomController {
     return room.getPlayerById(playerId);
   }
 
+  public getGameState(roomId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getState();
+  }
+
   /**
    * Sets new player list
    * @param roomId room id
@@ -138,8 +144,6 @@ export class RoomController {
     const room = this.getRoomById(roomId);
 
     room.setPlayers(players);
-
-    return room.getPlayers();
   }
 
   public getSelectedColour(roomId: string) {
@@ -158,6 +162,25 @@ export class RoomController {
     const room = this.getRoomById(roomId);
 
     return room.getCurrentTurn();
+  }
+
+  public getHinter(roomId: string) {
+    const room = this.getRoomById(roomId);
+    const hinter = room.getPlayers()[0];
+
+    return hinter;
+  }
+
+  public setWinner(roomId: string, player: Player) {
+    const room = this.getRoomById(roomId);
+
+    room.setWinner(player);
+  }
+
+  public getWinner(roomId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getWinner();
   }
 
   public setCurrentTurn(roomId: string, playerId: string) {
@@ -200,6 +223,98 @@ export class RoomController {
     players.forEach(player => {
       player.setFirstTint(null);
       player.setSecondTint(null);
+    });
+  }
+
+  public resetAllScores(roomId: string) {
+    const room = this.getRoomById(roomId);
+    const players = room.getPlayers();
+
+    players.forEach(player => {
+      player.setScore(0);
+    });
+  }
+
+  public determineWinner(roomId: string) {
+    const room = this.getRoomById(roomId);
+    const players = room.getPlayers();
+
+    const winningPlayers = players.filter(player => player.getScore() >= room.getScoreLimit());
+
+    if (winningPlayers.length === 0) return null;
+
+    let winningPlayer = winningPlayers[0];
+
+    winningPlayers.forEach(player => {
+      if (player.getScore() > winningPlayer.getScore()) {
+        winningPlayer = player;
+      }
+    });
+
+    room.setWinner(winningPlayer);
+  }
+
+  public updateScores(
+    roomId: string,
+    players: Player[],
+    innerSquares: Colour[],
+    outerSquares: Colour[]
+  ) {
+    const room = this.getRoomById(roomId);
+    const hinter = this.getHinter(roomId);
+
+    // we will check if anyone got the correct colour
+    players.forEach(player => {
+      if (player.getRole() === TINTER) {
+        if (player.getFirstTint().getRef() === room.getSelectedColour().getRef()) {
+          // 3 points for guessing the exact colour
+          player.setScore(player.getScore() + 3);
+
+          // hinter gets 1 point per guess inside scoring square
+          hinter.setScore(hinter.getScore() + 1);
+        }
+
+        if (player.getSecondTint().getRef() === room.getSelectedColour().getRef()) {
+          // 3 points for guessing the exact colour
+          player.setScore(player.getScore() + 3);
+          // hinter gets 1 point per guess inside scoring square
+          hinter.setScore(hinter.getScore() + 1);
+        }
+
+        // check for inner surrounding squares, score by 2
+        innerSquares.forEach(square => {
+          if (square) {
+            if (player.getFirstTint().getRef() === square.getRef()) {
+              // 2 points for guessing the spaces inside the scoring square
+              player.setScore(player.getScore() + 2);
+              // hinter gets 1 point per guess inside scoring square
+              hinter.setScore(hinter.getScore() + 1);
+            }
+
+            if (player.getSecondTint().getRef() === square.getRef()) {
+              // 2 points for guessing the spaces inside the scoring square
+              player.setScore(player.getScore() + 2);
+              // hinter gets 1 point per guess inside scoring square
+              hinter.setScore(hinter.getScore() + 1);
+            }
+          }
+        });
+
+        // check for outer surrounding squares, score by 1 - hinter gets no points for these
+        outerSquares.forEach(square => {
+          if (square) {
+            if (player.getFirstTint().getRef() === square.getRef()) {
+              // 1 points for guessing the spaces outside the scoring square
+              player.setScore(player.getScore() + 1);
+            }
+
+            if (player.getSecondTint().getRef() === square.getRef()) {
+              // 1 points for guessing the spaces outside the scoring square
+              player.setScore(player.getScore() + 1);
+            }
+          }
+        });
+      }
     });
   }
 }

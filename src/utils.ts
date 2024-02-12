@@ -12,8 +12,9 @@ export const pickRandomColourFromGrid = (grid: Grid) => {
   return square.hex;
 };
 
-export const getSurroundingElements = (row: number, col: number, matrix: Grid) => {
+export const getInnerColours = (row: number, col: number, matrix: Grid) => {
   let surroundingSpaces: Colour[] = [];
+
   for (let i = -1; i <= 1; i++) {
     for (let j = -1; j <= 1; j++) {
       // Skip the center item itself
@@ -35,7 +36,7 @@ export const getSurroundingElements = (row: number, col: number, matrix: Grid) =
   return surroundingSpaces;
 };
 
-export const getSurroundingSpacesByTwo = (row: number, col: number, matrix: Grid) => {
+export const getOuterColours = (row: number, col: number, matrix: Grid) => {
   let surroundingSpaces: Colour[] = [];
 
   for (let i = -2; i <= 2; i++) {

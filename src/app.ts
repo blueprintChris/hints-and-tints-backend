@@ -3,11 +3,9 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events';
 import { RoomController } from './controller/RoomController';
-import { Player } from './models/Player';
-import { HINTER, TINTER } from './constants/roles';
-import { grid } from './constants/grid';
-import { Colour } from './models/Colour';
-import { getSurroundingElements, getSurroundingSpacesByTwo } from './utils';
+import registerRoomHandlers from './handlers/roomHandler';
+import registerPlayerHandlers from './handlers/playerHandler';
+import registerGameHandlers from './handlers/gameHandler';
 
 export class Application {
   private roomController: RoomController;
@@ -42,335 +40,9 @@ export class Application {
       io.on('connection', async socket => {
         console.log(`a user connected to the server`);
 
-        const createRoom = ({ roomId }) => {
-          this.roomController.createRoom(roomId);
-
-          socket.emit('room-create', { roomId });
-        };
-
-        const joinRoom = ({ roomId, nickname }) => {
-          socket.join(roomId);
-
-          const player = new Player(socket.id, nickname);
-          socket.emit('update-player', { player });
-
-          this.roomController.joinRoom(roomId, player);
-          const room = this.roomController.getRoomById(roomId);
-
-          io.to(roomId).emit('room-join', {
-            roomId,
-            players: room.getPlayers(),
-            gameState: room.getState(),
-          });
-
-          console.log(`user ${nickname} joined room: ${roomId}`);
-        };
-
-        const roomSearch = ({ roomId }) => {
-          const doesRoomExist = this.roomController.getRoomById(roomId);
-
-          socket.emit('room-search', { doesRoomExist, roomId });
-        };
-
-        const updatePlayerRole = ({ roomId, playerId, role }) => {
-          const player = this.roomController.setPlayerRole(roomId, playerId, role);
-          socket.emit('update-player', { player });
-
-          const players = this.roomController.getPlayers(roomId);
-          io.to(roomId).emit('update-players', { players });
-
-          console.log(`${player.getName()} updated their role to ${role}`);
-        };
-
-        const updateGameState = ({ roomId, gameState }) => {
-          this.roomController.setRoomState(roomId, gameState);
-
-          io.to(roomId).emit('update-game-state', { gameState });
-        };
-
-        const startGame = ({ roomId, gameState }) => {
-          // get players in the room
-          const currentPlayers = this.roomController.getPlayers(roomId);
-          const sortedList: Player[] = [];
-
-          // put the hinter at the start of the array
-          const hinter = currentPlayers.find(pl => pl.getRole() === HINTER);
-          sortedList.push(hinter);
-
-          // put the rest of the players in
-          const tinters = currentPlayers.filter(pl => pl.getRole() === TINTER);
-          sortedList.push(...tinters);
-
-          // update the player list
-          this.roomController.setPlayers(roomId, sortedList);
-          const players = this.roomController.getPlayers(roomId);
-
-          // update the room state
-          this.roomController.setRoomState(roomId, gameState);
-          io.to(roomId).emit('game-start', { gameState, players });
-        };
-
-        const startRound = ({ roomId, selectedColour, gameState, firstHint }) => {
-          // get players in the room
-          const currentPlayers = this.roomController.getPlayers(roomId);
-
-          // get first tinter and make it their turn
-          const player = currentPlayers.filter(pl => pl.getRole() === TINTER)[0];
-          this.roomController.setCurrentTurn(roomId, player.getId());
-
-          // set the current selected colour, hint and update the game state
-          this.roomController.setRoomState(roomId, gameState);
-
-          const colour = new Colour(
-            selectedColour.ref,
-            selectedColour.hex,
-            selectedColour.col,
-            selectedColour.x,
-            selectedColour.y
-          );
-
-          this.roomController.setSelectedColour(roomId, colour);
-          this.roomController.setFirstHint(roomId, firstHint);
-
-          const room = this.roomController.getRoomById(roomId);
-
-          console.log(`current turn ${room.getCurrentTurn().getName()}`);
-
-          io.to(roomId).emit('round-start', {
-            selectedColour: room.getSelectedColour(),
-            gameState: room.getState(),
-            players: room.getPlayers(),
-            currentTurn: room.getCurrentTurn(),
-            firstHint: room.getFirstHint(),
-          });
-        };
-
-        const startSecondRound = ({ roomId, secondHint, gameState }) => {
-          // get player list
-          const players = this.roomController.getPlayers(roomId);
-
-          // get the last tinter and make it their turn
-          const player = players.filter(pl => pl.getRole() === TINTER)[players.length - 2];
-          this.roomController.setCurrentTurn(roomId, player.getId());
-
-          // set the game state and the 2nd hint
-          this.roomController.setRoomState(roomId, gameState);
-          this.roomController.setSecondHint(roomId, secondHint);
-
-          const room = this.roomController.getRoomById(roomId);
-
-          console.log(`current turn ${room.getCurrentTurn().getName()}`);
-
-          io.to(roomId).emit('round-start-2', {
-            gameState: room.getState(),
-            currentTurn: room.getCurrentTurn(),
-            secondHint: room.getSecondHint(),
-          });
-        };
-
-        const makeTurn = ({ roomId, selectedSquare, playerId }) => {
-          const room = this.roomController.getRoomById(roomId);
-
-          if (room.getState() === 'GUESSING_ONE') {
-            // update players colour guess so it shows on the board for everyone
-            const colour = new Colour(
-              selectedSquare.ref,
-              selectedSquare.hex,
-              selectedSquare.col,
-              selectedSquare.x,
-              selectedSquare.y
-            );
-            this.roomController.setFirstTintForPlayer(roomId, playerId, colour);
-
-            const players = this.roomController.getPlayers(roomId);
-            io.to(roomId).emit('update-players', { players });
-
-            // get the position of the current player in the list
-            const indexOfCurrentPlayer = players.findIndex(pl => pl.getId() === playerId);
-            const nextPlayer = players[indexOfCurrentPlayer + 1];
-
-            // if there is a next player, make it their turn
-            if (nextPlayer) {
-              this.roomController.setCurrentTurn(roomId, nextPlayer.getId());
-              const currentTurn = this.roomController.getCurrentTurn(roomId);
-
-              io.to(roomId).emit('make-turn', { currentTurn });
-            } else {
-              // if there is no next player, all players have had a turn - onto the next hint
-              this.roomController.setRoomState(roomId, 'SELECTION_TWO');
-
-              // we dont need to update the current player as they go again after selection
-              io.to(roomId).emit('update-game-state', { gameState: room.getState() });
-            }
-          }
-
-          if (room.getState() === 'GUESSING_TWO') {
-            // update players colour guess
-            const colour = new Colour(
-              selectedSquare.ref,
-              selectedSquare.hex,
-              selectedSquare.col,
-              selectedSquare.x,
-              selectedSquare.y
-            );
-
-            this.roomController.setSecondTintForPlayer(roomId, playerId, colour);
-
-            const players = this.roomController.getPlayers(roomId);
-            io.to(roomId).emit('update-players', { players });
-
-            // get the position of the current player in the list and find the next player
-            const indexOfCurrentPlayer = players.findIndex(pl => pl.getId() === playerId);
-            const nextPlayer = players[indexOfCurrentPlayer - 1];
-
-            if (nextPlayer) {
-              // we are back at the hinter, so all players have had 2 guesses
-              // we need to select the next new hinter and total up scores
-              if (nextPlayer.getRole() === HINTER) {
-                const square = this.roomController.getSelectedColour(roomId);
-
-                const surroundingSquares = getSurroundingElements(
-                  square.getX(),
-                  square.getY(),
-                  grid
-                );
-
-                const surroundingSquaresByTwo = getSurroundingSpacesByTwo(
-                  square.getX(),
-                  square.getY(),
-                  grid
-                );
-
-                // we will check if anyone got the correct colour
-                players.forEach(player => {
-                  if (player.getRole() === TINTER) {
-                    if (player.getFirstTint().getRef() === room.getSelectedColour().getRef()) {
-                      // 3 points for guessing the exact colour
-                      player.setScore(player.getScore() + 3);
-
-                      // hinter gets 1 point per guess inside 3x3 grid
-                      nextPlayer.setScore(nextPlayer.getScore() + 1);
-                    }
-
-                    if (player.getSecondTint().getRef() === room.getSelectedColour().getRef()) {
-                      // 3 points for guessing the exact colour
-                      player.setScore(player.getScore() + 3);
-                      // hinter gets 1 point per guess inside 3x3 grid
-                      nextPlayer.setScore(nextPlayer.getScore() + 1);
-                    }
-
-                    // check for inner surrounding squares, score by 2
-                    surroundingSquares.forEach(square => {
-                      if (square) {
-                        if (player.getFirstTint().getRef() === square.getRef()) {
-                          player.setScore(player.getScore() + 2);
-
-                          nextPlayer.setScore(nextPlayer.getScore() + 1);
-                        }
-
-                        if (player.getSecondTint().getRef() === square.getRef()) {
-                          player.setScore(player.getScore() + 2);
-
-                          nextPlayer.setScore(nextPlayer.getScore() + 1);
-                        }
-                      }
-                    });
-
-                    // check for outer squares, score by 1 - hinter gets no points for these
-                    surroundingSquaresByTwo.forEach(square => {
-                      if (square) {
-                        if (player.getFirstTint().getRef() === square.getRef()) {
-                          player.setScore(player.getScore() + 1);
-                        }
-
-                        if (player.getSecondTint().getRef() === square.getRef()) {
-                          player.setScore(player.getScore() + 1);
-                        }
-                      }
-                    });
-                  }
-                });
-
-                this.roomController.setPlayers(roomId, players);
-
-                io.to(roomId).emit('scoring', {
-                  players,
-                  gameState: 'SCORING',
-                  surroundingSquares,
-                });
-              }
-
-              this.roomController.setCurrentTurn(roomId, nextPlayer.getId());
-              const currentTurn = this.roomController.getCurrentTurn(roomId);
-
-              io.to(roomId).emit('make-turn', { currentTurn });
-            }
-          }
-        };
-
-        const endRound = ({ roomId }) => {
-          this.roomController.resetAllGuesses(roomId);
-          this.roomController.setFirstHint(roomId, '');
-          this.roomController.setSecondHint(roomId, '');
-
-          // get current hinter, who should always be at position zero and remove them from the list
-          const room = this.roomController.getRoomById(roomId);
-          const players = this.roomController.getPlayers(roomId);
-
-          const updatedPlayers: Player[] = [...players];
-          const currentHinter = updatedPlayers.shift();
-
-          // set their role to tinter and put them at the back
-          currentHinter.setPlayerRole(TINTER);
-          updatedPlayers.push(currentHinter);
-
-          // get the position of the current hinter in the list and set them as hinter
-          const nextHinter = updatedPlayers[0];
-          nextHinter.setPlayerRole(HINTER);
-
-          this.roomController.setPlayers(roomId, updatedPlayers);
-
-          io.to(roomId).emit('round-end', {
-            players: updatedPlayers,
-            gameState: 'SELECTION',
-            firstHint: room.getFirstHint(),
-            secondHint: room.getSecondHint(),
-          });
-        };
-
-        const disconnecting = () => {
-          const socketRoom = [...socket.rooms];
-
-          const playerId = socketRoom[0];
-          const roomId = socketRoom[1];
-
-          const room = this.roomController.getRoomById(roomId);
-
-          if (room) {
-            const player = room.getPlayerById(playerId);
-            const players = this.roomController.leaveRoom(roomId, player);
-
-            io.to(roomId).emit('room-leave', { players });
-
-            const isRoomEmpty = this.roomController.isRoomEmpty(roomId);
-
-            if (isRoomEmpty) {
-              this.roomController.deleteRoom(roomId);
-            }
-          }
-        };
-
-        socket.on('room-create', createRoom);
-        socket.on('room-join', joinRoom);
-        socket.on('room-search', roomSearch);
-        socket.on('game-start', startGame);
-        socket.on('round-start', startRound);
-        socket.on('round-start-2', startSecondRound);
-        socket.on('make-turn', makeTurn);
-        socket.on('round-end', endRound);
-        socket.on('update-player-role', updatePlayerRole);
-        socket.on('update-game-state', updateGameState);
-        socket.on('disconnecting', disconnecting);
+        registerRoomHandlers({ io, socket, roomController: this.roomController });
+        registerPlayerHandlers({ io, socket, roomController: this.roomController });
+        registerGameHandlers({ io, socket, roomController: this.roomController });
 
         socket.on('error', err => {
           console.error('an error occurred', err.message);
@@ -386,12 +58,18 @@ export class Application {
   }
 
   private initRoutes(app: Express) {
-    app.get('/', (req, res) => {
+    app.get('/', (_, res) => {
       res.send('root');
     });
 
-    app.get('/rooms', (req, res) => {
+    app.get('/rooms', (_, res) => {
       const rooms = this.roomController.getRooms();
+
+      res.send(rooms);
+    });
+
+    app.get('/room/:roomId', (req, res) => {
+      const rooms = this.roomController.getRoomById(req.params.roomId);
 
       res.send(rooms);
     });
