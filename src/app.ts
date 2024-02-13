@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
+import schedule from 'node-schedule';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events';
 import { RoomController } from './controller/RoomController';
 import registerRoomHandlers from './handlers/roomHandler';
@@ -13,6 +14,7 @@ export class Application {
 
   constructor(port: number) {
     this.port = port;
+    this.roomController = new RoomController();
   }
 
   public async start() {
@@ -25,15 +27,32 @@ export class Application {
       },
     });
 
-    this.roomController = new RoomController();
-
     this.initRoutes(app);
     this.initSocket(io);
+
+    schedule.scheduleJob({ hour: 18, minute: 35 }, this.deleteStaleRooms);
 
     server.listen(this.port, () => {
       console.log(`server running at http://localhost:${this.port}`);
     });
   }
+
+  private deleteStaleRooms = (): void => {
+    try {
+      console.log('stale room scheduler triggered');
+      const rooms = this.roomController.getRooms();
+      const now = new Date();
+
+      Object.keys(rooms.rooms).map(roomId => {
+        if (now.getTime() - rooms.rooms[roomId].getCreated().getTime() / 3600000 >= 24) {
+          console.log(`room ${roomId} is stale, deleting...`);
+          this.roomController.deleteRoom(roomId);
+        }
+      });
+    } catch (err) {
+      console.log(`error deleting stale rooms: ${err.message}`);
+    }
+  };
 
   private initSocket(io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) {
     try {
@@ -49,7 +68,7 @@ export class Application {
         });
 
         socket.on('disconnect', () => {
-          console.log(`a user disconnected`);
+          console.log('a user disconnected');
         });
       });
     } catch (err) {

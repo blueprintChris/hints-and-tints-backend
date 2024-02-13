@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "target": "ES2022",
+    "target": "es2022",
     "moduleResolution": "node",
     "sourceMap": true,
+    "resolveJsonModule": true,
     "outDir": "dist",
     "module": "es2022",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "noUncheckedIndexedAccess": true,
+    "allowJs": true
   },
-  "lib": ["ES2022"]
+  "lib": ["es2022"]
 }

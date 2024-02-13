@@ -3,6 +3,7 @@ export const Events = {
   ROOM_JOIN: 'room:join',
   ROOM_SEARCH: 'room:search',
   PLAYER_UPDATE: 'player:update',
+  PLAYER_SEARCH: 'player:search',
   PLAYER_UPDATE_ROLE: 'player:update:role',
   PLAYERS_UPDATE: 'players:update',
   GAME_START: 'game:start',

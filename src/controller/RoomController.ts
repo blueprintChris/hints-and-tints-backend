@@ -34,7 +34,7 @@ export class RoomController {
    * @returns true if player count is zero, false otherwise
    */
   public isRoomEmpty(id: string): boolean {
-    return this.getRoomById(id).getPlayers().length === 0 ? true : false;
+    return this.getRoomById(id).getAllPlayers().length === 0 ? true : false;
   }
 
   /**
@@ -67,7 +67,7 @@ export class RoomController {
 
     room.addPlayer(player);
 
-    return room.getPlayers();
+    return room.getAllPlayers();
   }
 
   /**
@@ -81,7 +81,7 @@ export class RoomController {
 
     room.removePlayer(player);
 
-    return room.getPlayers();
+    return room.getAllPlayers();
   }
 
   /**
@@ -116,16 +116,22 @@ export class RoomController {
    * @param roomId room id
    * @returns Player list
    */
-  public getPlayers(roomId: string): Player[] {
+  public getAllPlayers(roomId: string): Player[] {
     const room = this.getRoomById(roomId);
 
-    return room.getPlayers();
+    return room.getAllPlayers();
   }
 
   public getPlayerById(roomId: string, playerId: string) {
     const room = this.getRoomById(roomId);
 
     return room.getPlayerById(playerId);
+  }
+
+  public getPlayerBySocketId(roomId: string, socketId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getPlayerBySocketId(socketId);
   }
 
   public getGameState(roomId: string) {
@@ -166,7 +172,7 @@ export class RoomController {
 
   public getHinter(roomId: string) {
     const room = this.getRoomById(roomId);
-    const hinter = room.getPlayers()[0];
+    const hinter = room.getAllPlayers()[0];
 
     return hinter;
   }
@@ -181,6 +187,12 @@ export class RoomController {
     const room = this.getRoomById(roomId);
 
     return room.getWinner();
+  }
+
+  public getScoreLimit(roomId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getScoreLimit();
   }
 
   public setCurrentTurn(roomId: string, playerId: string) {
@@ -218,7 +230,7 @@ export class RoomController {
 
   public resetAllGuesses(roomId: string) {
     const room = this.getRoomById(roomId);
-    const players = room.getPlayers();
+    const players = room.getAllPlayers();
 
     players.forEach(player => {
       player.setFirstTint(null);
@@ -228,7 +240,7 @@ export class RoomController {
 
   public resetAllScores(roomId: string) {
     const room = this.getRoomById(roomId);
-    const players = room.getPlayers();
+    const players = room.getAllPlayers();
 
     players.forEach(player => {
       player.setScore(0);
@@ -237,7 +249,7 @@ export class RoomController {
 
   public determineWinner(roomId: string) {
     const room = this.getRoomById(roomId);
-    const players = room.getPlayers();
+    const players = room.getAllPlayers();
 
     const winningPlayers = players.filter(player => player.getScore() >= room.getScoreLimit());
 

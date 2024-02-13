@@ -4,6 +4,7 @@ import { grid } from '../constants/grid';
 
 export class Player {
   private id: string;
+  private socketId: string;
   private name: string;
   private role: string;
   private score: number;
@@ -11,8 +12,9 @@ export class Player {
   private firstTint: Colour;
   private secondTint: Colour;
 
-  constructor(id: string, name: string) {
+  constructor(id: string, name: string, socketId: string) {
     this.id = id;
+    this.socketId = socketId;
     this.name = name;
     this.role = '';
     this.score = 0;
@@ -41,6 +43,10 @@ export class Player {
     this.secondTint = colour;
   }
 
+  public setSocketId(socketId: string) {
+    this.socketId = socketId;
+  }
+
   public getFirstTint() {
     return this.firstTint;
   }
@@ -55,6 +61,10 @@ export class Player {
 
   public getId() {
     return this.id;
+  }
+
+  public getSocketId() {
+    return this.socketId;
   }
 
   public getRole() {

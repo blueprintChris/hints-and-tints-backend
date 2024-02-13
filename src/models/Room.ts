@@ -13,6 +13,7 @@ export class Room {
   private roundNumber: number;
   private scoreLimit: number;
   private winner: Player;
+  private created: Date;
 
   constructor(id: string, scoreLimit: number) {
     this.id = id;
@@ -26,14 +27,19 @@ export class Room {
     this.roundNumber = 0;
     this.scoreLimit = scoreLimit;
     this.winner = null;
+    this.created = new Date();
   }
 
-  public getPlayers() {
+  public getAllPlayers() {
     return this.players;
   }
 
   public getPlayerById(id: string): Player {
     return this.players.find(p => p.getId() === id);
+  }
+
+  public getPlayerBySocketId(id: string) {
+    return this.players.find(p => p.getSocketId() === id);
   }
 
   public getTurn() {
@@ -74,6 +80,10 @@ export class Room {
 
   public getWinner() {
     return this.winner;
+  }
+
+  public getCreated() {
+    return this.created;
   }
 
   public addPlayer(player: Player) {
