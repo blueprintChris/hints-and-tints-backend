@@ -6,7 +6,7 @@
     "sourceMap": true,
     "resolveJsonModule": true,
     "outDir": "dist",
-    "module": "es2022",
+    "module": "commonjs",
     "allowSyntheticDefaultImports": true,
     "noUncheckedIndexedAccess": true,
     "allowJs": true
