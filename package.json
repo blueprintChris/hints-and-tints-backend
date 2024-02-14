@@ -14,8 +14,8 @@
   },
   "scripts": {
     "start": "node --es-module-specifier-resolution=node dist/index.js",
-    "dev": "tsx watch index.ts",
-    "build": "npx tsc"
+    "dev": "tsx watch --env-file=.env index.ts",
+    "build": "npx tsc --env-file=.env"
   },
   "devDependencies": {
     "@babel/cli": "^7.23.9",

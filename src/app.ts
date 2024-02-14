@@ -11,8 +11,10 @@ import registerGameHandlers from './handlers/gameHandler';
 export class Application {
   private roomController: RoomController;
   private port: number;
+  private host: string;
 
-  constructor(port: number) {
+  constructor(port: number, host: string) {
+    this.host = host;
     this.port = port;
     this.roomController = new RoomController();
   }
@@ -28,12 +30,13 @@ export class Application {
     });
 
     this.initRoutes(app);
+    this.authSocket(io);
     this.initSocket(io);
 
     schedule.scheduleJob({ hour: 18, minute: 35 }, this.deleteStaleRooms);
 
-    server.listen(this.port, () => {
-      console.log(`server running at http://localhost:${this.port}`);
+    server.listen(this.port, this.host, () => {
+      console.log(`server running at ${this.host}:${this.port}`);
     });
   }
 
@@ -53,6 +56,22 @@ export class Application {
       console.log(`error deleting stale rooms: ${err.message}`);
     }
   };
+
+  private authSocket(io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) {
+    io.use((socket, next) => {
+      const token = socket.handshake.auth.token;
+
+      if (token !== process.env.SOCKET_KEY) {
+        const err = new Error('Not authorised!!');
+        console.log(`Not Authorised: ${err.message}`);
+
+        next(err);
+      } else {
+        console.log('auth accepted');
+        next();
+      }
+    });
+  }
 
   private initSocket(io: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) {
     try {

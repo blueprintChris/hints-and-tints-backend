@@ -3,9 +3,9 @@ import { Player } from '../models/Player';
 import { Handler, Payload } from './types';
 
 export default ({ io, socket, roomController }: Handler) => {
-  const createRoom = ({ roomId }: Payload) => {
+  const createRoom = ({ roomId, scoreLimit }: RoomCreate) => {
     try {
-      roomController.createRoom(roomId, 5);
+      roomController.createRoom(roomId, scoreLimit);
 
       socket.emit(Events.ROOM_CREATE, { roomId });
 
@@ -58,4 +58,8 @@ export default ({ io, socket, roomController }: Handler) => {
 interface RoomJoin extends Payload {
   nickname: string;
   playerId: string;
+}
+
+interface RoomCreate extends Payload {
+  scoreLimit: number;
 }
