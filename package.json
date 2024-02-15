@@ -13,9 +13,9 @@
     "uuid": "^9.0.1"
   },
   "scripts": {
-    "start": "node --es-module-specifier-resolution=node dist/index.js",
+    "start": "set NODE_ENV=production && node dist/index.js",
     "dev": "tsx watch --env-file=.env index.ts",
-    "build": "npx tsc --env-file=.env"
+    "build": "npx tsc && cp -r ./ssl ./dist"
   },
   "devDependencies": {
     "@babel/cli": "^7.23.9",

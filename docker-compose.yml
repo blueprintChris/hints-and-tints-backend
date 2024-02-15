@@ -1,0 +1,7 @@
+services:
+  web:
+    build: .
+    ports:
+      - '4000:4000'
+    environment:
+      - SOCKET_KEY=${SOCKET_KEY}

@@ -1,5 +1,8 @@
 import express, { Express } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { createServer } from 'node:http';
+import https from 'node:https';
 import { Server } from 'socket.io';
 import schedule from 'node-schedule';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events';
@@ -11,21 +14,39 @@ import registerGameHandlers from './handlers/gameHandler';
 export class Application {
   private roomController: RoomController;
   private port: number;
-  private host: string;
+  private server;
 
-  constructor(port: number, host: string) {
-    this.host = host;
+  constructor(port: number) {
     this.port = port;
     this.roomController = new RoomController();
   }
 
   public async start() {
     const app = express();
-    const server = createServer(app);
+    const environment = process.env.NODE_ENV;
 
-    const io = new Server(server, {
+    if (environment === 'development') {
+      this.server = createServer(app);
+    } else {
+      const folder = path.join(__dirname, 'ssl');
+      const privateKey = fs.readFileSync(path.join(folder, 'server.pem'), 'utf8').toString();
+      const certificate = fs.readFileSync(path.join(folder, 'server.crt'), 'utf8').toString();
+
+      this.server = https.createServer(
+        {
+          key: privateKey,
+          cert: certificate,
+          ca: [certificate],
+          rejectUnauthorized: false,
+          requestCert: false,
+        },
+        app
+      );
+    }
+
+    const io = new Server(this.server, {
       cors: {
-        origin: 'http://localhost:3000',
+        origin: '*',
       },
     });
 
@@ -35,8 +56,8 @@ export class Application {
 
     schedule.scheduleJob({ hour: 18, minute: 35 }, this.deleteStaleRooms);
 
-    server.listen(this.port, this.host, () => {
-      console.log(`server running at ${this.host}:${this.port}`);
+    this.server.listen(this.port, () => {
+      console.log(`server listening on port: ${this.port}`);
     });
   }
 
@@ -83,6 +104,10 @@ export class Application {
         registerGameHandlers({ io, socket, roomController: this.roomController });
 
         socket.on('error', err => {
+          console.error('an error occurred', err.message);
+        });
+
+        socket.on('connect_error', err => {
           console.error('an error occurred', err.message);
         });
 
