@@ -19,11 +19,12 @@ export default ({ io, socket, roomController }: Handler) => {
     try {
       socket.join(roomId);
 
-      const player = new Player(playerId, nickname, socket.id);
+      const room = roomController.getRoomById(roomId);
+      const player = new Player(playerId, nickname, socket.id, room.isEmpty());
+
       socket.emit(Events.PLAYER_UPDATE, { player });
 
       roomController.joinRoom(roomId, player);
-      const room = roomController.getRoomById(roomId);
 
       io.to(roomId).emit(Events.ROOM_JOIN, {
         roomId,
@@ -36,6 +37,13 @@ export default ({ io, socket, roomController }: Handler) => {
     } catch (err) {
       console.error(`error joining room: ${err.message}`);
     }
+  };
+
+  const updateRoom = ({ roomId, scoreLimit }) => {
+    const room = roomController.getRoomById(roomId);
+    room.setScoreLimit(scoreLimit);
+
+    io.to(roomId).emit(Events.ROOM_UPDATE, { scoreLimit: room.getScoreLimit() });
   };
 
   const roomSearch = ({ roomId }: Payload) => {
@@ -52,6 +60,7 @@ export default ({ io, socket, roomController }: Handler) => {
 
   socket.on(Events.ROOM_CREATE, createRoom);
   socket.on(Events.ROOM_JOIN, joinRoom);
+  socket.on(Events.ROOM_UPDATE, updateRoom);
   socket.on(Events.ROOM_SEARCH, roomSearch);
 };
 

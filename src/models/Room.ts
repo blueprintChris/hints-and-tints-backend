@@ -86,6 +86,10 @@ export class Room {
     return this.created;
   }
 
+  public isEmpty() {
+    return this.players.length === 0 ? true : false;
+  }
+
   public addPlayer(player: Player) {
     this.players.push(player);
   }
@@ -126,5 +130,9 @@ export class Room {
 
   public setWinner(player: Player) {
     this.winner = player;
+  }
+
+  public setScoreLimit(scoreLimit: number) {
+    this.scoreLimit = scoreLimit;
   }
 }
