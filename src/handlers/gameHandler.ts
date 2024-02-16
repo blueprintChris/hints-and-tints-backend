@@ -47,13 +47,19 @@ export default ({ io, socket, roomController }: Handler) => {
       // update the room state
       roomController.setRoomState(roomId, GameStates.SELECTION_ONE);
 
-      io.to(roomId).emit(Events.GAME_START, {
+      const result = {
         gameState: roomController.getGameState(roomId),
         players,
         firstHint: room.getFirstHint(),
         secondHint: room.getSecondHint(),
         winner: null,
-      });
+      };
+
+      console.log(result);
+
+      io.to(roomId).emit(Events.GAME_START, { ...result });
+
+      console.log(`game started`);
     } catch (err) {
       console.error(`error starting game: ${err.message}`);
     }
@@ -184,9 +190,9 @@ export default ({ io, socket, roomController }: Handler) => {
         const nextPlayer = players[indexOfCurrentPlayer - 1];
 
         if (nextPlayer) {
-          // if the next player is the hinter, then everyone has had their turn, its time to score
+          // if the next player is the hinter, then everyone has had their turn, its time to reveal the hinters colour
           if (nextPlayer.getRole() === HINTER) {
-            roomController.setRoomState(roomId, GameStates.SCORING);
+            roomController.setRoomState(roomId, GameStates.REVEAL);
 
             const square = roomController.getSelectedColour(roomId);
 
@@ -208,7 +214,6 @@ export default ({ io, socket, roomController }: Handler) => {
               winner,
             });
           }
-
           roomController.setCurrentTurn(roomId, nextPlayer.getId());
           const currentTurn = roomController.getCurrentTurn(roomId);
 
@@ -217,6 +222,28 @@ export default ({ io, socket, roomController }: Handler) => {
       }
     } catch (err) {
       console.error(`error ending turn: ${err.message}`);
+    }
+  };
+
+  const updateScores = ({ roomId }: Payload) => {
+    try {
+      const room = roomController.getRoomById(roomId);
+      const winner = roomController.getWinner(roomId);
+
+      if (winner) {
+        roomController.setRoomState(roomId, GameStates.GAME_END);
+        io.to(roomId).emit(Events.GAME_UPDATE_STATE, {
+          gameState: room.getState(),
+          winner,
+        });
+      } else {
+        roomController.setRoomState(roomId, GameStates.SCORING);
+        io.to(roomId).emit(Events.GAME_UPDATE_STATE, {
+          gameState: room.getState(),
+        });
+      }
+    } catch (err) {
+      console.error(`error updating scores: ${err.message}`);
     }
   };
 
@@ -274,6 +301,7 @@ export default ({ io, socket, roomController }: Handler) => {
   socket.on(Events.GAME_TURN_END, endTurn);
   socket.on(Events.GAME_ROUND_START, startRound);
   socket.on(Events.GAME_UPDATE_STATE, updateGameState);
+  socket.on(Events.GAME_UPDATE_SCORES, updateScores);
   socket.on(Events.GAME_START, startGame);
   socket.on(Events.GAME_ROUND_CONTINUE, continueRound);
   socket.on(Events.GAME_ROUND_END, endRound);

@@ -54,7 +54,7 @@ export class Application {
     this.authSocket(io);
     this.initSocket(io);
 
-    schedule.scheduleJob({ hour: 18, minute: 35 }, this.deleteStaleRooms);
+    schedule.scheduleJob({ hour: 0, minute: 0 }, this.deleteStaleRooms);
 
     this.server.listen(this.port, () => {
       console.log(`server listening on port: ${this.port}`);

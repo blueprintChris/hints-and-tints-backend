@@ -12,8 +12,9 @@ export const Events = {
   GAME_ROUND_CONTINUE: 'game:round:continue',
   GAME_ROUND_END: 'game:round:end',
   GAME_UPDATE_STATE: 'game:update:state',
-  GAME_TURN_END: 'game:update:turn',
   GAME_UPDATE_SCORES: 'game:update:scores',
+  GAME_TURN_END: 'game:update:turn',
+
   GAME_END: 'game:end',
   DISCONNECTING: 'disconnecting',
 };
