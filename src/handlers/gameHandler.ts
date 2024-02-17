@@ -232,12 +232,14 @@ export default ({ io, socket, roomController }: Handler) => {
 
       if (winner) {
         roomController.setRoomState(roomId, GameStates.GAME_END);
+
         io.to(roomId).emit(Events.GAME_UPDATE_STATE, {
           gameState: room.getState(),
           winner,
         });
       } else {
         roomController.setRoomState(roomId, GameStates.SCORING);
+
         io.to(roomId).emit(Events.GAME_UPDATE_STATE, {
           gameState: room.getState(),
         });

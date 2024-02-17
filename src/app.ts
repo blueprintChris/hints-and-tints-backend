@@ -23,14 +23,13 @@ export class Application {
 
   public async start() {
     const app = express();
-    const environment = process.env.NODE_ENV;
+    const environment = 'development';
 
     if (environment === 'development') {
       this.server = createServer(app);
     } else {
-      const folder = path.join(__dirname, 'ssl');
-      const privateKey = fs.readFileSync(path.join(folder, 'server.pem'), 'utf8').toString();
-      const certificate = fs.readFileSync(path.join(folder, 'server.crt'), 'utf8').toString();
+      const privateKey = fs.readFileSync(path.join('ssl/selfsigned.key'), 'utf8').toString();
+      const certificate = fs.readFileSync(path.join('ssl/selfsigned.crt'), 'utf8').toString();
 
       this.server = https.createServer(
         {
