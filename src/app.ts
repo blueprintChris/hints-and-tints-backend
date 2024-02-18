@@ -14,7 +14,6 @@ import registerGameHandlers from './handlers/gameHandler';
 export class Application {
   private roomController: RoomController;
   private port: number;
-  private server;
 
   constructor(port: number) {
     this.port = port;
@@ -23,20 +22,9 @@ export class Application {
 
   public async start() {
     const app = express();
-    const environment = process.env.NODE_ENV;
+    const server = createServer(app);
 
-    if (environment === 'development') {
-      this.server = createServer(app);
-    } else {
-      this.server = https.createServer(
-        {
-          cert: 'arn:aws:acm:us-east-1:978544736059:certificate/dbdb1891-850a-4253-8850-7faa521b7fcc',
-        },
-        app
-      );
-    }
-
-    const io = new Server(this.server, {
+    const io = new Server(server, {
       cors: {
         origin: '*',
       },
@@ -48,7 +36,7 @@ export class Application {
 
     schedule.scheduleJob({ hour: 0, minute: 0 }, this.deleteStaleRooms);
 
-    this.server.listen(this.port, () => {
+    server.listen(this.port, () => {
       console.log(`server listening on port: ${this.port}`);
     });
   }
@@ -113,20 +101,24 @@ export class Application {
   }
 
   private initRoutes(app: Express) {
-    app.get('/', (_, res) => {
+    app.get('/v1', (_, res) => {
       res.send('root');
     });
 
-    app.get('/rooms', (_, res) => {
+    app.get('/v1/rooms', (_, res) => {
       const rooms = this.roomController.getRooms();
 
       res.send(rooms);
     });
 
-    app.get('/room/:roomId', (req, res) => {
+    app.get('/v1/room/:roomId', (req, res) => {
       const rooms = this.roomController.getRoomById(req.params.roomId);
 
       res.send(rooms);
+    });
+
+    app.get('/v1/health', (req, res) => {
+      res.status(200).send('ok');
     });
   }
 }

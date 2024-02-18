@@ -1,57 +1,54 @@
-# name: Production Build
+name: Production Build
 
-# on:
-#   push:
-#     branches: [main]
+on:
+  push:
+    branches: [main]
 
-#   workflow_dispatch:
+  workflow_dispatch:
 
-# jobs:
-#   build:
-#     name: Build
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v3
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-#       - name: Install NodeJS
-#         uses: actions/setup-node@v3
-#         with:
-#           node-version: '20.10.0'
-#           cache: 'yarn'
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.10.0'
+          cache: 'yarn'
 
-#       - name: Docker build
-#         run: docker build . -t 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
+      - name: Docker build
+        run: docker build . -t 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
 
-#       - name: Docker login
-#         run: aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 978544736059.dkr.ecr.eu-west-2.amazonaws.com
+      - name: Upload production-ready build files
+        uses: actions/upload-artifact@v2
+        with:
+          name: production-files
+          path: ./dist
 
-#       - name: Docker push
-#         run: docker push 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
+  deploy:
+    name: Push
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: production-files
+          path: ./dist
 
-#       - name: Upload production-ready build files
-#         uses: actions/upload-artifact@v2
-#         with:
-#           name: production-files
-#           path: ./dist
+      - name: Configure AWS Credentials
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-#   deploy:
-#     name: Deploy
-#     needs: build
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Download artifact
-#         uses: actions/download-artifact@v2
-#         with:
-#           name: production-files
-#           path: ./dist
-
-#       - name: Configure AWS Credentials
-#         uses: aws-actions/aws-secretsmanager-get-secrets@v1
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ secrets.AWS_REGION }}
-
-#       - name: Deploy app to S3
-#         run: aws s3 sync ./build/ s3://${{ secrets.AWS_S3_BUCKET }} --delete
+      - name: Docker login
+        run: aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 978544736059.dkr.ecr.eu-west-2.amazonaws.com
+  
+      - name: Docker push
+        run: docker push 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
