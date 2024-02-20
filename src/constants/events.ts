@@ -3,6 +3,7 @@ export const Events = {
   ROOM_JOIN: 'room:join',
   ROOM_UPDATE: 'room:update',
   ROOM_SEARCH: 'room:search',
+  ROOM_GET: 'room:get',
   PLAYER_UPDATE: 'player:update',
   PLAYER_SEARCH: 'player:search',
   PLAYER_UPDATE_ROLE: 'player:update:role',
@@ -14,7 +15,7 @@ export const Events = {
   GAME_UPDATE_STATE: 'game:update:state',
   GAME_UPDATE_SCORES: 'game:update:scores',
   GAME_TURN_END: 'game:update:turn',
-
+  GAME_JOIN: 'game:join',
   GAME_END: 'game:end',
   DISCONNECTING: 'disconnecting',
 };

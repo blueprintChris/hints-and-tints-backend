@@ -57,17 +57,15 @@ export class RoomController {
   }
 
   /**
-   * Joins a room in session and returns an updated player list
+   * Joins a room in session as a spectator and returns an updated player list
    * @param roomId room id
    * @param player player to add
    * @returns players
    */
-  public joinRoom(roomId: string, player: Player): Player[] {
+  public joinRoom(roomId: string, player: Player): void {
     const room = this.getRoomById(roomId);
 
-    room.addPlayer(player);
-
-    return room.getAllPlayers();
+    room.addSpectator(player);
   }
 
   /**
@@ -76,12 +74,35 @@ export class RoomController {
    * @param player player to remove
    * @returns players
    */
-  public leaveRoom(roomId: string, player: Player): Player[] {
+  public leaveRoom(roomId: string, player: Player): void {
+    const room = this.getRoomById(roomId);
+
+    room.removeSpectator(player);
+  }
+
+  /**
+   * Joins a game in session and returns an updated player list
+   * @param roomId room id
+   * @param player player to add
+   * @returns players
+   */
+  public joinGame(roomId: string, player: Player): void {
+    const room = this.getRoomById(roomId);
+
+    room.addPlayer(player);
+    room.removeSpectator(player);
+  }
+
+  /**
+   * Removes a player from a player list within a single room and returns updated player list
+   * @param roomId room id
+   * @param player player to remove
+   * @returns players
+   */
+  public leaveGame(roomId: string, player: Player): void {
     const room = this.getRoomById(roomId);
 
     room.removePlayer(player);
-
-    return room.getAllPlayers();
   }
 
   /**
@@ -126,6 +147,18 @@ export class RoomController {
     const room = this.getRoomById(roomId);
 
     return room.getPlayerById(playerId);
+  }
+
+  public getAllSpectators(roomId: string): Player[] {
+    const room = this.getRoomById(roomId);
+
+    return room.getAllSpectators();
+  }
+
+  public getSpectatorById(roomId: string, playerId: string) {
+    const room = this.getRoomById(roomId);
+
+    return room.getSpectatorById(playerId);
   }
 
   public getPlayerBySocketId(roomId: string, socketId: string) {

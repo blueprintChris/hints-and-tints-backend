@@ -18,6 +18,28 @@ export default ({ io, socket, roomController }: Handler) => {
     }
   };
 
+  const joinGame = ({ roomId, playerId, role }) => {
+    try {
+      const spectator = roomController.getSpectatorById(roomId, playerId);
+
+      roomController.joinGame(roomId, spectator);
+      roomController.setPlayerRole(roomId, playerId, role);
+
+      const player = roomController.getPlayerById(roomId, playerId);
+
+      socket.emit(Events.PLAYER_UPDATE, { player });
+
+      const players = roomController.getAllPlayers(roomId);
+      const spectators = roomController.getAllSpectators(roomId);
+
+      io.to(roomId).emit(Events.GAME_JOIN, { players, spectators });
+
+      console.log(`${player.getName()} joined the game ${role}`);
+    } catch (err) {
+      console.error(`error joining game: ${err.message}`);
+    }
+  };
+
   const startGame = ({ roomId }: GameStateUpdate) => {
     try {
       roomController.resetAllGuesses(roomId);
@@ -54,8 +76,6 @@ export default ({ io, socket, roomController }: Handler) => {
         secondHint: room.getSecondHint(),
         winner: null,
       };
-
-      console.log(result);
 
       io.to(roomId).emit(Events.GAME_START, { ...result });
 
@@ -300,6 +320,7 @@ export default ({ io, socket, roomController }: Handler) => {
     }
   };
 
+  socket.on(Events.GAME_JOIN, joinGame);
   socket.on(Events.GAME_TURN_END, endTurn);
   socket.on(Events.GAME_ROUND_START, startRound);
   socket.on(Events.GAME_UPDATE_STATE, updateGameState);

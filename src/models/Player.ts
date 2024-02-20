@@ -17,7 +17,7 @@ export class Player {
     this.id = id;
     this.socketId = socketId;
     this.name = name;
-    this.role = '';
+    this.role = 'SPECTATOR';
     this.score = 0;
     this.colour = pickRandomColourFromGrid(grid);
     this.firstTint = null;

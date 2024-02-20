@@ -15,6 +15,33 @@ export default ({ io, socket, roomController }: Handler) => {
     }
   };
 
+  const getRoom = ({ roomId, playerId }) => {
+    try {
+      socket.join(roomId);
+
+      const room = roomController.getRoomById(roomId);
+      const player =
+        roomController.getSpectatorById(roomId, playerId) ||
+        roomController.getPlayerById(roomId, playerId);
+
+      socket.emit(Events.ROOM_GET, {
+        isInRoom: true,
+        player,
+        players: room.getAllPlayers(),
+        spectators: room.getAllSpectators(),
+        gameState: room.getState(),
+        scoreLimit: room.getScoreLimit(),
+        currentTurn: room.getCurrentTurn(),
+        selectedColour: room.getSelectedColour(),
+        firstHint: room.getFirstHint(),
+        secondHint: room.getSecondHint(),
+        winner: room.getWinner(),
+      });
+    } catch (err) {
+      console.error(`error getting room data: ${err.message}`);
+    }
+  };
+
   const joinRoom = ({ roomId, nickname, playerId }: RoomJoin) => {
     try {
       socket.join(roomId);
@@ -29,6 +56,7 @@ export default ({ io, socket, roomController }: Handler) => {
       io.to(roomId).emit(Events.ROOM_JOIN, {
         roomId,
         players: room.getAllPlayers(),
+        spectators: room.getAllSpectators(),
         gameState: room.getState(),
         scoreLimit: room.getScoreLimit(),
       });
@@ -62,6 +90,7 @@ export default ({ io, socket, roomController }: Handler) => {
   socket.on(Events.ROOM_JOIN, joinRoom);
   socket.on(Events.ROOM_UPDATE, updateRoom);
   socket.on(Events.ROOM_SEARCH, roomSearch);
+  socket.on(Events.ROOM_GET, getRoom);
 };
 
 interface RoomJoin extends Payload {

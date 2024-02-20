@@ -21,27 +21,18 @@ export default ({ io, socket, roomController }: Handler) => {
 
   const handlePlayerSearch = ({ roomId, playerId }: PlayerSearch) => {
     try {
-      const player = roomController.getPlayerById(roomId, playerId);
+      console.log(`checking if player is already in a room`);
 
-      if (player) {
-        const room = roomController.getRoomById(roomId);
-        socket.join(roomId);
+      const player =
+        roomController.getPlayerById(roomId, playerId) ||
+        roomController.getSpectatorById(roomId, playerId);
 
-        player.setSocketId(socket.id);
-
-        socket.emit(Events.PLAYER_SEARCH, {
-          player,
-          players: room.getAllPlayers(),
-          gameState: room.getState(),
-          scoreLimit: room.getScoreLimit(),
-          currentTurn: room.getCurrentTurn(),
-          selectedColour: room.getSelectedColour(),
-          firstHint: room.getFirstHint(),
-          secondHint: room.getSecondHint(),
-          winner: room.getWinner(),
-        });
-
-        console.log(`${player.getName()} re-joined the game`);
+      if (!player) {
+        console.log('player not found in room');
+        socket.emit(Events.PLAYER_SEARCH, { isInRoom: false });
+      } else {
+        console.log(`player found: ${player.getName()}`);
+        socket.emit(Events.PLAYER_SEARCH, { isInRoom: true });
       }
     } catch (err) {
       console.error(`error searching for player room: ${err.message}`);

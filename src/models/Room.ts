@@ -4,6 +4,7 @@ import { Player } from './Player';
 export class Room {
   private id: string;
   private players: Player[];
+  private spectators: Player[];
   private currentTurn: Player;
   private hinter: Player;
   private state: string;
@@ -18,6 +19,7 @@ export class Room {
   constructor(id: string, scoreLimit: number) {
     this.id = id;
     this.players = [];
+    this.spectators = [];
     this.currentTurn = null;
     this.hinter = null;
     this.state = 'LOBBY';
@@ -40,6 +42,14 @@ export class Room {
 
   public getPlayerBySocketId(id: string) {
     return this.players.find(p => p.getSocketId() === id);
+  }
+
+  public getAllSpectators() {
+    return this.spectators;
+  }
+
+  public getSpectatorById(id: string) {
+    return this.spectators.find(p => p.getId() === id);
   }
 
   public getTurn() {
@@ -87,11 +97,21 @@ export class Room {
   }
 
   public isEmpty() {
-    return this.players.length === 0 ? true : false;
+    return this.spectators.length === 0 ? true : false;
   }
 
   public addPlayer(player: Player) {
     this.players.push(player);
+  }
+
+  public addSpectator(player: Player) {
+    this.spectators.push(player);
+  }
+
+  public removeSpectator(spectator: Player) {
+    const spectatorIndex = this.spectators.indexOf(spectator);
+
+    this.spectators.splice(spectatorIndex, 1);
   }
 
   public removePlayer(player: Player): void {

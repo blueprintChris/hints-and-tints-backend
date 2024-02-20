@@ -10,16 +10,16 @@ RUN npm install
 
 COPY . /usr/src/tints-and-hints
 
-RUN npx tsc
+RUN yarn tsc
 
 EXPOSE 4000
 
 CMD ["node", "./dist/index.js"]
 
-# to push new update
 # 1. Login to docker: 
   # aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 978544736059.dkr.ecr.eu-west-2.amazonaws.com
-# 2. docker build . -t 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
+# 2. 
+  # docker build . -t 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
 # 6. docker push 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
 # 7. login to putty -> docker stop 978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
  # docker stop  978544736059.dkr.ecr.eu-west-2.amazonaws.com/hints-and-tints-backend
