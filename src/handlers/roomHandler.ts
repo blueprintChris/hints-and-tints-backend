@@ -68,10 +68,14 @@ export default ({ io, socket, roomController }: Handler) => {
   };
 
   const updateRoom = ({ roomId, scoreLimit }) => {
-    const room = roomController.getRoomById(roomId);
-    room.setScoreLimit(scoreLimit);
+    try {
+      const room = roomController.getRoomById(roomId);
+      room.setScoreLimit(scoreLimit);
 
-    io.to(roomId).emit(Events.ROOM_UPDATE, { scoreLimit: room.getScoreLimit() });
+      io.to(roomId).emit(Events.ROOM_UPDATE, { scoreLimit: room.getScoreLimit() });
+    } catch (err) {
+      console.error(`error updating score for room: ${err.message}`);
+    }
   };
 
   const roomSearch = ({ roomId }: Payload) => {

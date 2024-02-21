@@ -97,7 +97,7 @@ export class Room {
   }
 
   public isEmpty() {
-    return this.spectators.length === 0 ? true : false;
+    return this.spectators.length === 0 && this.players.length === 0;
   }
 
   public addPlayer(player: Player) {
