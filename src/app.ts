@@ -88,6 +88,9 @@ export class Application {
           console.error('an error occurred', err.message);
         });
 
+        socket.on('disconnecting', reason => {
+          console.log(reason);
+        });
         socket.on('disconnect', () => {
           console.log('a user disconnected');
         });

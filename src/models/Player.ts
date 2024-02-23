@@ -1,12 +1,14 @@
 import { Colour } from './Colour';
 import { pickRandomColourFromGrid } from '../utils';
 import { grid } from '../constants/grid';
+import { SPECTATOR } from 'src/constants/roles';
 
 export class Player {
   private id: string;
   private socketId: string;
   private name: string;
   private role: string;
+  private prevScore: number;
   private score: number;
   private colour: string;
   private firstTint: Colour;
@@ -17,7 +19,8 @@ export class Player {
     this.id = id;
     this.socketId = socketId;
     this.name = name;
-    this.role = 'SPECTATOR';
+    this.role = SPECTATOR;
+    this.prevScore = 0;
     this.score = 0;
     this.colour = pickRandomColourFromGrid(grid);
     this.firstTint = null;
@@ -49,6 +52,10 @@ export class Player {
     return this.role;
   }
 
+  public getPrevScore() {
+    return this.prevScore;
+  }
+
   public getScore() {
     return this.score;
   }
@@ -63,6 +70,10 @@ export class Player {
 
   public setName(name: string) {
     this.name = name;
+  }
+
+  public setPrevScore(score: number) {
+    this.prevScore = score;
   }
 
   public setScore(score: number) {

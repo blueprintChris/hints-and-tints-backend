@@ -17,5 +17,6 @@ export const Events = {
   GAME_TURN_END: 'game:update:turn',
   GAME_JOIN: 'game:join',
   GAME_END: 'game:end',
+  GAME_RESET: 'game:reset',
   DISCONNECTING: 'disconnecting',
 };

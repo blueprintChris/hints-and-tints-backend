@@ -277,6 +277,7 @@ export class RoomController {
 
     players.forEach(player => {
       player.setScore(0);
+      player.setPrevScore(0);
     });
   }
 
@@ -310,6 +311,9 @@ export class RoomController {
 
     // we will check if anyone got the correct colour
     players.forEach(player => {
+      // first we need to store the previous score
+      player.setPrevScore(player.getScore());
+
       if (player.getRole() === TINTER) {
         if (player.getFirstTint().getRef() === room.getSelectedColour().getRef()) {
           // 3 points for guessing the exact colour

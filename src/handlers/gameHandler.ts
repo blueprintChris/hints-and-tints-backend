@@ -1,7 +1,7 @@
 import { Events } from '../constants/events';
 import { GameStates } from '../constants/game';
 import { Square, grid } from '../constants/grid';
-import { HINTER, TINTER } from '../constants/roles';
+import { HINTER, SPECTATOR, TINTER } from '../constants/roles';
 import { Colour } from '../models/Colour';
 import { Player } from '../models/Player';
 import { getInnerColours, getOuterColours } from '../utils';
@@ -42,42 +42,35 @@ export default ({ io, socket, roomController }: Handler) => {
 
   const startGame = ({ roomId }: GameStateUpdate) => {
     try {
+      const room = roomController.getRoomById(roomId);
+
+      // reset everything
       roomController.resetAllGuesses(roomId);
       roomController.resetAllScores(roomId);
       roomController.setFirstHint(roomId, '');
       roomController.setSecondHint(roomId, '');
       roomController.setWinner(roomId, null);
-
-      // get players in the room
-      const currentPlayers = roomController.getAllPlayers(roomId);
-      const sortedList: Player[] = [];
-
-      // put the hinter at the start of the array
-      const hinter = currentPlayers.find(pl => pl.getRole() === HINTER);
-      sortedList.push(hinter);
-
-      // put the rest of the players in
-      const tinters = currentPlayers.filter(pl => pl.getRole() === TINTER);
-      sortedList.push(...tinters);
-
-      // update the player list
-      const room = roomController.getRoomById(roomId);
-
-      roomController.setPlayers(roomId, sortedList);
-      const players = room.getAllPlayers();
-
-      // update the room state
       roomController.setRoomState(roomId, GameStates.SELECTION_ONE);
 
-      const result = {
-        gameState: roomController.getGameState(roomId),
-        players,
+      // get players in the room
+      const currentPlayers = room.getAllPlayers();
+      const sortedList: Player[] = [];
+
+      // put the hinter at the start of the array, put the rest in after
+      const hinter = currentPlayers.filter(pl => pl.getRole() === HINTER);
+      const tinters = currentPlayers.filter(pl => pl.getRole() === TINTER);
+      sortedList.push(...hinter, ...tinters);
+
+      // update the player list
+      roomController.setPlayers(roomId, sortedList);
+
+      io.to(roomId).emit(Events.GAME_START, {
+        gameState: room.getState(),
+        players: room.getAllPlayers(),
         firstHint: room.getFirstHint(),
         secondHint: room.getSecondHint(),
-        winner: null,
-      };
-
-      io.to(roomId).emit(Events.GAME_START, { ...result });
+        winner: room.getWinner(),
+      });
 
       console.log(`game started`);
     } catch (err) {
@@ -87,16 +80,13 @@ export default ({ io, socket, roomController }: Handler) => {
 
   const startRound = ({ roomId, selectedColour, gameState, firstHint }: GameRoundStart) => {
     try {
-      // get players in the room
-      const currentPlayers = roomController.getAllPlayers(roomId);
+      const room = roomController.getRoomById(roomId);
+      const currentPlayers = room.getAllPlayers();
 
       // get first tinter and make it their turn
       const player = currentPlayers.filter(pl => pl.getRole() === TINTER)[0];
-      roomController.setCurrentTurn(roomId, player.getId());
 
       // set the current selected colour, hint and update the game state
-      roomController.setRoomState(roomId, gameState);
-
       const colour = new Colour(
         selectedColour.ref,
         selectedColour.hex,
@@ -105,12 +95,10 @@ export default ({ io, socket, roomController }: Handler) => {
         selectedColour.y
       );
 
+      roomController.setCurrentTurn(roomId, player.getId());
+      roomController.setRoomState(roomId, gameState);
       roomController.setSelectedColour(roomId, colour);
       roomController.setFirstHint(roomId, firstHint);
-
-      const room = roomController.getRoomById(roomId);
-
-      console.log(`current turn ${room.getCurrentTurn().getName()}`);
 
       io.to(roomId).emit(Events.GAME_ROUND_START, {
         selectedColour: room.getSelectedColour(),
@@ -119,6 +107,8 @@ export default ({ io, socket, roomController }: Handler) => {
         currentTurn: room.getCurrentTurn(),
         firstHint: room.getFirstHint(),
       });
+
+      console.log(`current turn ${room.getCurrentTurn().getName()}`);
     } catch (err) {
       console.error(`error starting round: ${err.message}`);
     }
@@ -127,25 +117,24 @@ export default ({ io, socket, roomController }: Handler) => {
   const continueRound = ({ roomId, secondHint, gameState }: GameRoundStartSecondHalf) => {
     try {
       // get player list
-      const players = roomController.getAllPlayers(roomId);
+      const room = roomController.getRoomById(roomId);
+      const players = room.getAllPlayers();
 
       // get the last tinter and make it their turn
       const player = players.filter(pl => pl.getRole() === TINTER)[players.length - 2];
-      roomController.setCurrentTurn(roomId, player.getId());
 
       // set the game state and the 2nd hint
+      roomController.setCurrentTurn(roomId, player.getId());
       roomController.setRoomState(roomId, gameState);
       roomController.setSecondHint(roomId, secondHint);
-
-      const room = roomController.getRoomById(roomId);
-
-      console.log(`current turn ${room.getCurrentTurn().getName()}`);
 
       io.to(roomId).emit(Events.GAME_ROUND_CONTINUE, {
         gameState: room.getState(),
         currentTurn: room.getCurrentTurn(),
         secondHint: room.getSecondHint(),
       });
+
+      console.log(`current turn ${room.getCurrentTurn().getName()}`);
     } catch (err) {
       console.error(`error continuing round: ${err.message}`);
     }
@@ -156,6 +145,7 @@ export default ({ io, socket, roomController }: Handler) => {
       const room = roomController.getRoomById(roomId);
 
       if (room.getState() === GameStates.GUESSING_ONE) {
+        const players = room.getAllPlayers();
         // update players colour guess so it shows on the board for everyone
         const colour = new Colour(
           selectedSquare.ref,
@@ -166,9 +156,8 @@ export default ({ io, socket, roomController }: Handler) => {
         );
 
         roomController.setFirstTintForPlayer(roomId, playerId, colour);
-        const players = roomController.getAllPlayers(roomId);
 
-        io.to(roomId).emit(Events.PLAYERS_UPDATE, { players });
+        io.to(roomId).emit(Events.PLAYERS_UPDATE, { players: room.getAllPlayers() });
 
         // get the position of the current player in the list
         const indexOfCurrentPlayer = players.findIndex(pl => pl.getId() === playerId);
@@ -320,6 +309,51 @@ export default ({ io, socket, roomController }: Handler) => {
     }
   };
 
+  const handleGameReset = ({ roomId }: Payload) => {
+    try {
+      // reset all player scores and guesses
+      roomController.resetAllGuesses(roomId);
+      roomController.resetAllScores(roomId);
+
+      // reset hints and winner
+      roomController.setFirstHint(roomId, '');
+      roomController.setSecondHint(roomId, '');
+      roomController.setWinner(roomId, null);
+
+      roomController.setCurrentTurn(roomId, null);
+      roomController.setSelectedColour(roomId, null);
+
+      const room = roomController.getRoomById(roomId);
+      const players = roomController.getAllPlayers(roomId);
+
+      // move all players back to spectator and reset role to spectator
+      for (var i = 0; i < players.length; i++) {
+        players[i].setPlayerRole(SPECTATOR);
+
+        roomController.joinRoom(roomId, players[i]);
+        roomController.leaveGame(roomId, players[i]);
+
+        i--;
+      }
+
+      // update the room state
+      roomController.setRoomState(roomId, GameStates.LOBBY);
+
+      io.to(roomId).emit(Events.GAME_RESET, {
+        players: room.getAllPlayers(),
+        spectators: room.getAllSpectators(),
+        gameState: room.getState(),
+        firstHint: room.getFirstHint(),
+        secondHint: room.getSecondHint(),
+        currentTurn: room.getCurrentTurn(),
+        selectedColour: room.getSelectedColour(),
+        winner: room.getWinner(),
+      });
+    } catch (err) {
+      console.error(`error resetting game: ${err.message}`);
+    }
+  };
+
   socket.on(Events.GAME_JOIN, joinGame);
   socket.on(Events.GAME_TURN_END, endTurn);
   socket.on(Events.GAME_ROUND_START, startRound);
@@ -329,6 +363,7 @@ export default ({ io, socket, roomController }: Handler) => {
   socket.on(Events.GAME_ROUND_CONTINUE, continueRound);
   socket.on(Events.GAME_ROUND_END, endRound);
   socket.on(Events.GAME_END, handleEndGame);
+  socket.on(Events.GAME_RESET, handleGameReset);
 };
 
 interface GameStateUpdate extends Payload {
