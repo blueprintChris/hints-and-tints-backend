@@ -1,7 +1,7 @@
 import { Colour } from './Colour';
 import { pickRandomColourFromGrid } from '../utils';
 import { grid } from '../constants/grid';
-import { SPECTATOR } from 'src/constants/roles';
+import { SPECTATOR } from '../constants/roles';
 
 export class Player {
   private id: string;

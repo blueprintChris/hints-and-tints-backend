@@ -15,7 +15,7 @@
   "scripts": {
     "start": "set NODE_ENV=production && node dist/index.js",
     "dev": "tsx watch --env-file=.env index.ts",
-    "build": "npx tsc && cp -r ./ssl ./dist"
+    "build": "npx tsc"
   },
   "devDependencies": {
     "@babel/cli": "^7.23.9",
