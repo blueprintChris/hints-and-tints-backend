@@ -1,8 +1,5 @@
 import express, { Express } from 'express';
-import fs from 'fs';
-import path from 'path';
-import { createServer } from 'node:http';
-import https from 'node:https';
+import { createServer } from 'http';
 import { Server } from 'socket.io';
 import schedule from 'node-schedule';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events';
@@ -91,6 +88,9 @@ export class Application {
           console.error('an error occurred', err.message);
         });
 
+        socket.on('disconnecting', reason => {
+          console.log(reason);
+        });
         socket.on('disconnect', () => {
           console.log('a user disconnected');
         });
